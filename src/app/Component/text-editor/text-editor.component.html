@@ -1,0 +1,146 @@
+<div class="text-editor-container">
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <button class="toolbar-button" (click)="formatText('bold')" [class.active]="isActive('bold')" title="Bold">
+        <i class="material-icons">format_bold</i>
+      </button>
+      <button class="toolbar-button" (click)="formatText('italic')" [class.active]="isActive('italic')" title="Italic">
+        <i class="material-icons">format_italic</i>
+      </button>
+      <button class="toolbar-button" (click)="formatText('underline')" [class.active]="isActive('underline')" title="Underline">
+        <i class="material-icons">format_underlined</i>
+      </button>
+      <button class="toolbar-button" (click)="formatText('strikeThrough')" [class.active]="isActive('strikeThrough')" title="Strike Through">
+        <i class="material-icons">format_strikethrough</i>
+      </button>
+    </div>
+    
+    <div class="toolbar-group">
+      <button class="toolbar-button" (click)="formatText('justifyLeft')" [class.active]="isActive('justifyLeft')" title="Align Left">
+        <i class="material-icons">format_align_left</i>
+      </button>
+      <button class="toolbar-button" (click)="formatText('justifyCenter')" [class.active]="isActive('justifyCenter')" title="Align Center">
+        <i class="material-icons">format_align_center</i>
+      </button>
+      <button class="toolbar-button" (click)="formatText('justifyRight')" [class.active]="isActive('justifyRight')" title="Align Right">
+        <i class="material-icons">format_align_right</i>
+      </button>
+      <button class="toolbar-button" (click)="formatText('justifyFull')" [class.active]="isActive('justifyFull')" title="Justify">
+        <i class="material-icons">format_align_justify</i>
+      </button>
+    </div>
+    
+    <div class="toolbar-group">
+      <button class="toolbar-button" (click)="formatText('insertUnorderedList')" [class.active]="isActive('insertUnorderedList')" title="Bullet List">
+        <i class="material-icons">format_list_bulleted</i>
+      </button>
+      <button class="toolbar-button" (click)="formatText('insertOrderedList')" [class.active]="isActive('insertOrderedList')" title="Numbered List">
+        <i class="material-icons">format_list_numbered</i>
+      </button>
+      <button class="toolbar-button" (click)="formatText('outdent')" title="Decrease Indent">
+        <i class="material-icons">format_indent_decrease</i>
+      </button>
+      <button class="toolbar-button" (click)="formatText('indent')" title="Increase Indent">
+        <i class="material-icons">format_indent_increase</i>
+      </button>
+    </div>
+    
+    <div class="toolbar-group">
+      <div class="select-container">
+        <i class="material-icons select-icon">text_fields</i>
+        <select class="format-select" (change)="formatHeading($event)">
+          <option value="">Normal Text</option>
+          <option value="h1">Heading 1</option>
+          <option value="h2">Heading 2</option>
+          <option value="h3">Heading 3</option>
+          <option value="h4">Heading 4</option>
+          <option value="h5">Heading 5</option>
+          <option value="h6">Heading 6</option>
+        </select>
+      </div>
+      
+      <div class="select-container">
+        <i class="material-icons select-icon">font_download</i>
+        <select class="format-select" (change)="formatFontName($event)">
+          <option value="">Font</option>
+          <option value="Arial">Arial</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Verdana">Verdana</option>
+        </select>
+      </div>
+      
+      <div class="select-container">
+        <i class="material-icons select-icon">format_size</i>
+        <select class="format-select" (change)="formatFontSize($event)">
+          <option value="">Size</option>
+          <option value="1">Very Small</option>
+          <option value="2">Small</option>
+          <option value="3">Normal</option>
+          <option value="4">Medium Large</option>
+          <option value="5">Large</option>
+          <option value="6">Very Large</option>
+          <option value="7">Maximum</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="toolbar-group">
+      <div class="color-container" title="Text Color">
+        <i class="material-icons">format_color_text</i>
+        <input type="color" class="color-picker" (change)="formatColor($event)">
+      </div>
+      <button class="toolbar-button" (click)="formatText('removeFormat')" title="Clear Formatting">
+        <i class="material-icons">format_clear</i>
+      </button>
+    </div>
+    
+    <div class="toolbar-group">
+      <button class="toolbar-button" (click)="insertLink()" title="Insert Link">
+        <i class="material-icons">link</i>
+      </button>
+      <button class="toolbar-button" (click)="insertImage()" title="Insert Image">
+        <i class="material-icons">image</i>
+      </button>
+      <button class="toolbar-button" (click)="toggleDirection()" title="Toggle Text Direction">
+        <i class="material-icons">format_textdirection_{{textDirection === 'ltr' ? 'r' : 'l'}}_to_{{textDirection === 'ltr' ? 'l' : 'r'}}</i>
+      </button>
+    </div>
+    
+    <div class="toolbar-group">
+      <button class="toolbar-button" (click)="undo()" title="Undo (Ctrl+Z)">
+        <i class="material-icons">undo</i>
+      </button>
+      <button class="toolbar-button" (click)="redo()" title="Redo (Ctrl+Y)">
+        <i class="material-icons">redo</i>
+      </button>
+      <button class="toolbar-button" (click)="saveContent()" title="Save (Ctrl+S)">
+        <i class="material-icons">save</i>
+      </button>
+      <button class="toolbar-button" (click)="clearContent()" title="Clear All">
+        <i class="material-icons">delete_sweep</i>
+      </button>
+    </div>
+  </div>
+  
+  <div 
+    class="editor-content" 
+    contenteditable="true" 
+    [innerHTML]="content" 
+    (input)="onContentChange($event)" 
+    (blur)="onEditorBlur()"
+    (focus)="onEditorFocus()"
+    (keydown)="onKeyDown($event)"
+    dir="ltr"
+    #editorContent>
+  </div>
+  
+  <div class="editor-statusbar">
+    <span class="status-text">{{ statusText }}</span>
+    <div class="status-icons">
+      <i class="material-icons status-icon" title="Auto-Save Active">save</i>
+      <span class="word-count"><i class="material-icons">text_fields</i> {{ wordCount }}</span>
+    </div>
+  </div>
+</div>
