@@ -1,5 +1,5 @@
 {
-  "name": "auro-editor",
+  "name": "editor",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
@@ -18,10 +18,6 @@
     "@angular/platform-browser": "^19.0.0",
     "@angular/platform-browser-dynamic": "^19.0.0",
     "@angular/router": "^19.0.0",
-    "@ckeditor/ckeditor5-angular": "^9.1.0",
-    "@ckeditor/ckeditor5-build-classic": "^41.4.2",
-    "primeicons": "^7.0.0",
-    "primeng": "^19.1.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
