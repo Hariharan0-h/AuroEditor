@@ -8,7 +8,7 @@
 .auro-editor {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 98vh;
   font-family: 'Inter', sans-serif;
   color: #333;
   background-color: #f8f9fa;
@@ -152,6 +152,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
 }
 
 .color-display {
@@ -159,18 +160,35 @@
   height: 16px;
   border-radius: 50%;
   border: 1px solid #dee2e6;
+  cursor: pointer;
 }
 
 .color-picker input[type="color"] {
-  width: 0;
+  cursor: pointer;
   height: 0;
+  width: 0;
   padding: 0;
   border: none;
-  visibility: hidden;
+  position: absolute;
 }
 
 .color-picker span {
   font-size: 12px;
+}
+
+.color-picker .color-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1f3f5;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.color-picker .color-btn:hover {
+  background-color: #e9ecef;
 }
 
 /* Font Select */
@@ -203,6 +221,30 @@
   padding: 20px;
 }
 
+.canvas-container {
+  cursor: default;
+}
+
+.editor-object.resize-n, .editor-object.resize-s {
+  cursor: ns-resize;
+}
+
+.editor-object.resize-e, .editor-object.resize-w {
+  cursor: ew-resize;
+}
+
+.editor-object.resize-ne, .editor-object.resize-sw {
+  cursor: nesw-resize;
+}
+
+.editor-object.resize-nw, .editor-object.resize-se {
+  cursor: nwse-resize;
+}
+
+.editor-object.rotating {
+  cursor: grabbing;
+}
+
 .editor {
   width: 794px; /* A4 width */
   height: 1123px; /* A4 height */
@@ -218,13 +260,15 @@
   position: absolute;
   cursor: move;
   user-select: none;
-  transform-origin: center center; /* For rotation */
-  transition: box-shadow 0.2s; /* Smooth transition for selection effect */
+  transform-origin: center center;
+  transition: box-shadow 0.2s;
+  touch-action: none; 
 }
 
 .editor-object.selected {
   outline: 2px dashed #4361ee;
-  box-shadow: 0 0 8px rgba(67, 97, 238, 0.5);
+  box-shadow: 0 0 12px rgba(67, 97, 238, 0.5);
+  z-index: 10 !important; /* Ensure selected objects are always visible */
 }
 
 /* Resize Handles - NEW */
@@ -239,19 +283,21 @@
 
 .resize-handle {
   position: absolute;
-  width: 10px;
-  height: 10px;
+  width: 12px; /* Slightly larger for better touch targets */
+  height: 12px;
   background-color: #4361ee;
   border: 1px solid white;
   border-radius: 50%;
-  pointer-events: auto; /* Make handles clickable */
+  pointer-events: auto;
   cursor: pointer;
   z-index: 1000;
-  transition: transform 0.1s;
+  transition: transform 0.1s, background-color 0.2s;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
 }
 
 .resize-handle:hover {
-  transform: scale(1.2);
+  transform: scale(1.3);
+  background-color: #3f37c9;
 }
 
 /* Position the handles */
@@ -310,13 +356,13 @@
 /* Rotation Handle - NEW */
 .rotate-handle {
   position: absolute;
-  top: -25px;
+  top: -30px; /* Position it a bit higher for better visibility */
   left: 50%;
   transform: translateX(-50%);
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   background-color: #4CAF50;
-  border: 1px solid white;
+  border: 2px solid white;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -325,17 +371,32 @@
   cursor: grab;
   pointer-events: auto;
   z-index: 1000;
-  font-size: 10px;
+  font-size: 12px;
   transition: transform 0.1s, background-color 0.2s;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
 }
 
 .rotate-handle:hover {
   transform: translateX(-50%) scale(1.2);
-  background-color: #45a049;
+  background-color: #163018;
 }
 
 .rotate-handle:active {
   cursor: grabbing;
+}
+
+.editor-object.dragging {
+  opacity: 0.8;
+}
+
+/* Add styles for undo/redo buttons */
+.toolbar-btn.undo-redo {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+.toolbar-btn.undo-redo:hover {
+  background-color: #e9ecef;
 }
 
 /* Group Object Styling - NEW */
@@ -359,11 +420,18 @@
 }
 
 /* Text Object */
-.text-object {
-  width: 100%;
-  height: 100%;
+.text-object[contenteditable="true"] {
+  cursor: text;
+  padding: 2px; /* Add some padding to make text easier to edit */
+  width: calc(100% - 4px); /* Adjust for padding */
+  height: calc(100% - 4px); /* Adjust for padding */
   white-space: pre-wrap;
   overflow: hidden;
+  outline: none; /* Remove default outline when focused */
+}
+
+.text-object[contenteditable="true"]:focus {
+  box-shadow: inset 0 0 0 2px rgba(67, 97, 238, 0.3);
 }
 
 /* Shape Object */
@@ -476,10 +544,9 @@
 
 /* Page Controls */
 .page-controls {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
+  bottom: 40px;
+  left: 15px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -487,6 +554,7 @@
   padding: 6px 10px;
   border-radius: 6px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  z-index: 100;
 }
 
 .page-btn {
@@ -544,9 +612,9 @@
 
 /* Zoom Controls */
 .zoom-controls {
-  position: absolute;
-  top: 20px;
-  right: 20px;
+  position: fixed;
+  bottom: 40px;
+  right: 28px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -554,6 +622,7 @@
   padding: 6px 10px;
   border-radius: 6px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  z-index: 100;
 }
 
 .zoom-btn {
@@ -601,13 +670,21 @@
   margin-right: 24px;
 }
 
+.canvas-container.multi-select-mode {
+  background-color: #e9ecef;
+  background-image: linear-gradient(45deg, rgba(67, 97, 238, 0.05) 25%, transparent 25%, 
+                    transparent 50%, rgba(67, 97, 238, 0.05) 50%, rgba(67, 97, 238, 0.05) 75%, 
+                    transparent 75%, transparent);
+  background-size: 20px 20px;
+}
+
 /* Context Menu */
 .context-menu {
   position: fixed;
   background-color: white;
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  z-index: 2000;
   overflow: hidden;
   min-width: 180px;
   animation: fadeIn 0.15s ease-out;
@@ -824,13 +901,14 @@
   bottom: 20px;
   right: 20px;
   padding: 12px 16px;
-  border-radius: 4px;
+  max-width: 300px;
+  border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   gap: 8px;
   color: white;
-  z-index: 2000;
+  z-index: 3000;
   animation: slide-in 0.3s, fade-out 0.3s 2.7s;
 }
 

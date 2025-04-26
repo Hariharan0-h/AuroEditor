@@ -71,7 +71,11 @@
           <div class="color-picker">
             <div class="color-display" [style.background-color]="getTextColor()"></div>
             <span>Color</span>
-            <input type="color" [value]="getTextColor()" (input)="setColor($event)">
+            <!-- Fix: Add a click handler to trigger the input -->
+            <input #colorInput type="color" [value]="getTextColor()" (input)="setColor($event)" style="opacity: 0; position: absolute;">
+            <button class="toolbar-btn" (click)="colorInput.click()">
+              <i class="fas fa-palette"></i>
+            </button>
           </div>
         </div>
         
@@ -169,14 +173,24 @@
             <i class="fas fa-ellipsis-v"></i>
           </button>
         </div>
+
+        <div class="toolbar-group">
+          <button class="toolbar-btn" (click)="undo()" title="Undo (Ctrl+Z)">
+            <i class="fas fa-undo"></i> Undo
+          </button>
+          <button class="toolbar-btn" (click)="redo()" title="Redo (Ctrl+Y)">
+            <i class="fas fa-redo"></i> Redo
+          </button>
+        </div>
       </div>
       
       <!-- Editor Canvas -->
-      <div class="canvas-container" (click)="selectedObject = null; selectedObjects = []; showTextControls = false;">
+      <div class="canvas-container" (click)="handleCanvasClick($event)">
         <div class="editor" #editorContainer [style.transform]="'scale(' + zoom/100 + ')'">
           <!-- Render each object -->
           <div *ngFor="let obj of objects" 
               class="editor-object" 
+              [id]="obj.id"
               [class.selected]="obj === selectedObject || selectedObjects.includes(obj)"
               [style.left.px]="obj.x"
               [style.top.px]="obj.y"
@@ -184,19 +198,22 @@
               [style.height.px]="obj.height"
               [style.z-index]="obj.zIndex"
               [style.transform]="'rotate(' + (obj.rotation || 0) + 'deg)'"
-              (mousedown)="$event.stopPropagation()">
+              (mousedown)="selectAndStartDrag($event, obj)">
             
             <!-- Text Object -->
             <div *ngIf="obj.type === 'text'" class="text-object"
-                [style.font-family]="getObjectProperty(obj, 'fontFamily')"
-                [style.font-size.px]="getObjectProperty(obj, 'fontSize')"
-                [style.font-weight]="getObjectProperty(obj, 'fontWeight')"
-                [style.font-style]="getObjectProperty(obj, 'fontStyle')"
-                [style.text-decoration]="getObjectProperty(obj, 'textDecoration')"
-                [style.color]="getObjectProperty(obj, 'color')"
-                [style.text-align]="getObjectProperty(obj, 'textAlign')">
-              {{ getObjectProperty(obj, 'text') }}
-            </div>
+              [style.font-family]="getObjectProperty(obj, 'fontFamily')"
+              [style.font-size.px]="getObjectProperty(obj, 'fontSize')"
+              [style.font-weight]="getObjectProperty(obj, 'fontWeight')"
+              [style.font-style]="getObjectProperty(obj, 'fontStyle')"
+              [style.text-decoration]="getObjectProperty(obj, 'textDecoration')"
+              [style.color]="getObjectProperty(obj, 'color')"
+              [style.text-align]="getObjectProperty(obj, 'textAlign')"
+              [attr.contenteditable]="obj === selectedObject ? 'true' : 'false'"
+              (input)="updateTextContent($event, obj)"
+              (click)="$event.stopPropagation()">
+              {{getObjectProperty(obj, 'text')}}
+          </div>
             
             <!-- Shape Object -->
             <div *ngIf="obj.type === 'shape'" class="shape-object">
@@ -231,14 +248,8 @@
             <!-- Table Object -->
             <div *ngIf="obj.type === 'table'" class="table-object">
               <table>
-                <tr>
-                  <th *ngFor="let c of createArrayForTable(obj, 'cols')">
-                    Header {{ c + 1 }}
-                  </th>
-                </tr>
                 <tr *ngFor="let r of createArrayForTable(obj, 'rows')">
                   <td *ngFor="let c of createArrayForTable(obj, 'cols')">
-                    Cell data
                   </td>
                 </tr>
               </table>
@@ -252,17 +263,17 @@
             
             <!-- Resize Handles (NEW) - Only show for selected object -->
             <div *ngIf="obj === selectedObject" class="resize-handles">
-              <div class="resize-handle n" data-handle="n" title="Resize"></div>
-              <div class="resize-handle e" data-handle="e" title="Resize"></div>
-              <div class="resize-handle s" data-handle="s" title="Resize"></div>
-              <div class="resize-handle w" data-handle="w" title="Resize"></div>
-              <div class="resize-handle ne" data-handle="ne" title="Resize"></div>
-              <div class="resize-handle se" data-handle="se" title="Resize"></div>
-              <div class="resize-handle sw" data-handle="sw" title="Resize"></div>
-              <div class="resize-handle nw" data-handle="nw" title="Resize"></div>
+              <div class="resize-handle n" data-handle="n" title="Resize" (mousedown)="startResize($event, 'n')"></div>
+              <div class="resize-handle e" data-handle="e" title="Resize" (mousedown)="startResize($event, 'e')"></div>
+              <div class="resize-handle s" data-handle="s" title="Resize" (mousedown)="startResize($event, 's')"></div>
+              <div class="resize-handle w" data-handle="w" title="Resize" (mousedown)="startResize($event, 'w')"></div>
+              <div class="resize-handle ne" data-handle="ne" title="Resize" (mousedown)="startResize($event, 'ne')"></div>
+              <div class="resize-handle se" data-handle="se" title="Resize" (mousedown)="startResize($event, 'se')"></div>
+              <div class="resize-handle sw" data-handle="sw" title="Resize" (mousedown)="startResize($event, 'sw')"></div>
+              <div class="resize-handle nw" data-handle="nw" title="Resize" (mousedown)="startResize($event, 'nw')"></div>
               
-              <!-- Rotation Handle (NEW) -->
-              <div class="rotate-handle" title="Rotate">
+              <!-- Rotation Handle -->
+              <div class="rotate-handle" title="Rotate" (mousedown)="startRotate($event)">
                 <i class="fas fa-sync-alt"></i>
               </div>
             </div>
