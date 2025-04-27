@@ -604,6 +604,123 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     this.zoom = Math.max(10, Math.min(200, this.zoom + amount));
   }
 
+  selectObject(e: MouseEvent, obj: EditorObject): void {
+    // Prevent event from bubbling
+    e.stopPropagation();
+    
+    // Special handling for text objects
+    const target = e.target as HTMLElement;
+    if (obj.type === 'text') {
+      // If clicking directly on a text element that's already selected and editable
+      if (target.classList.contains('text-object') && 
+          obj === this.selectedObject &&
+          target.getAttribute('contenteditable') === 'true') {
+        // Allow normal text editing
+        return;
+      }
+    }
+    
+    // Handle right click separately
+    if (e.button === 2) {
+      this.selectedObject = obj;
+      this.selectedObjects = [obj];
+      this.showContextMenu = true;
+      this.contextMenuX = e.clientX;
+      this.contextMenuY = e.clientY;
+      this.updateTextControls();
+      return;
+    }
+    
+    // Left click - Selection logic
+    if (e.button === 0) {
+      if (this.isMultiSelect) {
+        const index = this.selectedObjects.findIndex(o => o.id === obj.id);
+        if (index === -1) {
+          // Add to selection
+          this.selectedObjects.push(obj);
+          if (!this.selectedObject) {
+            this.selectedObject = obj;
+          }
+        } else {
+          // Remove from selection
+          this.selectedObjects.splice(index, 1);
+          if (this.selectedObject && this.selectedObject.id === obj.id) {
+            this.selectedObject = this.selectedObjects.length > 0 ? this.selectedObjects[0] : null;
+          }
+        }
+      } else {
+        this.selectedObject = obj;
+        this.selectedObjects = [obj];
+      }
+      
+      // Special handling for text objects
+      if (obj.type === 'text' && obj === this.selectedObject) {
+        // Focus the text element after a short delay to allow Angular to update
+        setTimeout(() => {
+          if (obj === this.selectedObject) {
+            this.focusTextForEditing(obj as TextObject);
+          }
+        }, 50);
+      }
+      
+      // Bring to front
+      this.bringToFront(obj);
+      
+      // Update text controls if needed
+      this.updateTextControls();
+    }
+  }
+  
+  startDrag(e: MouseEvent, obj: EditorObject): void {
+    // Don't handle if target is a handle or editable content
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('resize-handle') || 
+        target.classList.contains('rotate-handle') ||
+        target.closest('.rotate-handle')) {
+      return;
+    }
+    
+    // Don't start drag when clicking on an editable text box
+    if (target.getAttribute('contenteditable') === 'true') {
+      return;
+    }
+    
+    // Only handle left mouse button
+    if (e.button !== 0) return;
+    
+    // Check if object is already selected, if not, select it first
+    const isSelected = this.selectedObjects.some(o => o.id === obj.id);
+    if (!isSelected) {
+      this.selectObject(e, obj);
+    }
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Start dragging
+    this.isDragging = true;
+    this.dragStartX = e.clientX;
+    this.dragStartY = e.clientY;
+    this.dragStartObjX = obj.x;
+    this.dragStartObjY = obj.y;
+    
+    // Store original positions for all selected objects
+    this.selectedObjects.forEach(selectedObj => {
+      (selectedObj as any).originalX = selectedObj.x;
+      (selectedObj as any).originalY = selectedObj.y;
+    });
+    
+    // Add dragging class
+    const element = document.getElementById(obj.id);
+    if (element) {
+      element.classList.add('dragging');
+    }
+  }
+
+  stopPropagation(e: Event): void {
+    e.stopPropagation();
+  }
+
   // Helper methods
   generateId(): string {
     return `obj-${this.nextId++}`;
@@ -650,6 +767,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     
     // Handle dragging - with zoom factor adjustment
     if (this.isDragging && this.selectedObject) {
+      e.preventDefault(); // Prevent text selection while dragging
+      
       const dx = (e.clientX - this.dragStartX) / (this.zoom / 100);
       const dy = (e.clientY - this.dragStartY) / (this.zoom / 100);
       
@@ -667,6 +786,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     
     // Handle resizing with proper calculations
     if (this.isResizing && this.selectedObject) {
+      e.preventDefault(); // Prevent text selection while resizing
+      
       const dx = (e.clientX - this.resizeStartX) / (this.zoom / 100);
       const dy = (e.clientY - this.resizeStartY) / (this.zoom / 100);
       
@@ -726,6 +847,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     
     // Handle rotation with improved angle calculation
     if (this.isRotating && this.selectedObject) {
+      e.preventDefault(); // Prevent text selection while rotating
+      
       // Calculate object center in screen coordinates
       const centerX = this.selectedObject.x + this.selectedObject.width / 2;
       const centerY = this.selectedObject.y + this.selectedObject.height / 2;
@@ -750,6 +873,16 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   handleMouseUp = (e: MouseEvent): void => {
     // Check if we were dragging, resizing or rotating
     const wasChanging = this.isDragging || this.isResizing || this.isRotating;
+    
+    // Remove dragging class from all objects
+    if (this.isDragging) {
+      this.selectedObjects.forEach(obj => {
+        const element = document.getElementById(obj.id);
+        if (element) {
+          element.classList.remove('dragging');
+        }
+      });
+    }
     
     // End all active operations
     this.isDragging = false;
@@ -897,6 +1030,11 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     }
     
     this.showTextControls = this.selectedObject.type === 'text';
+  }
+  
+  // This function is called to check if an object is currently selected
+  isObjectSelected(obj: EditorObject): boolean {
+    return this.selectedObject === obj || this.selectedObjects.some(selected => selected.id === obj.id);
   }
   
   hideContextMenu(): void {
@@ -1654,6 +1792,65 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
         selection.addRange(range);
       }
     }
+  }
+  
+  // ====== SHAPE STYLING METHODS ======
+  
+  getShapeFillColor(): string {
+    if (this.selectedObject?.type === 'shape') {
+      return (this.selectedObject as ShapeObject).fillColor || 'transparent';
+    }
+    return '#4361ee';
+  }
+  
+  getShapeStrokeColor(): string {
+    if (this.selectedObject?.type === 'shape') {
+      return (this.selectedObject as ShapeObject).strokeColor || '#3f37c9';
+    }
+    return '#3f37c9';
+  }
+  
+  getShapeStrokeWidth(): number {
+    if (this.selectedObject?.type === 'shape') {
+      return (this.selectedObject as ShapeObject).strokeWidth || 1;
+    }
+    return 1;
+  }
+  
+  setShapeFillColor(event: Event): void {
+    if (this.selectedObject?.type !== 'shape') return;
+  
+    this.saveToHistory();
+    
+    const input = event.target as HTMLInputElement;
+    if (!input?.value) return;
+    
+    (this.selectedObject as ShapeObject).fillColor = input.value;
+    this.notify('Shape fill color changed', 'success');
+  }
+  
+  setShapeStrokeColor(event: Event): void {
+    if (this.selectedObject?.type !== 'shape') return;
+  
+    this.saveToHistory();
+    
+    const input = event.target as HTMLInputElement;
+    if (!input?.value) return;
+    
+    (this.selectedObject as ShapeObject).strokeColor = input.value;
+    this.notify('Shape stroke color changed', 'success');
+  }
+  
+  setShapeStrokeWidth(event: Event): void {
+    if (this.selectedObject?.type !== 'shape') return;
+  
+    this.saveToHistory();
+    
+    const select = event.target as HTMLSelectElement;
+    if (!select?.value) return;
+    
+    (this.selectedObject as ShapeObject).strokeWidth = parseInt(select.value, 10);
+    this.notify(`Stroke width set to ${select.value}px`, 'success');
   }
   
   // ====== TABLE RESIZE METHODS ======
