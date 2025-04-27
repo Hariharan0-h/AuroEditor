@@ -389,6 +389,45 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
       }
     }
   }
+  
+  // Add this new handler for the browser's context menu
+  @HostListener('contextmenu', ['$event'])
+  onContextMenu(e: MouseEvent): void {
+    // Check if the click was inside the editor
+    if (this.editorContainer && this.editorContainer.nativeElement.contains(e.target)) {
+      // Prevent default browser context menu
+      e.preventDefault();
+      
+      // Find the closest editor object
+      const target = e.target as HTMLElement;
+      const editorObjectElement = target.closest('.editor-object');
+      
+      if (editorObjectElement) {
+        // Get the object by ID
+        const objectId = editorObjectElement.id;
+        const obj = this.objects.find(o => o.id === objectId);
+        
+        if (obj) {
+          // Select the object
+          this.selectedObject = obj;
+          this.selectedObjects = [obj];
+          
+          // Show context menu at click position
+          this.showContextMenu = true;
+          this.contextMenuX = e.clientX;
+          this.contextMenuY = e.clientY;
+          
+          // Update text controls if needed
+          this.updateTextControls();
+        }
+      } else {
+        // Clicked on the editor but not on any object
+        this.selectedObject = null;
+        this.selectedObjects = [];
+        this.showContextMenu = false;
+      }
+    }
+  }
 
   // ====== SELECTION AND DRAG HANDLING ======
   
@@ -424,17 +463,6 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
         this.focusTextForEditing(obj as TextObject);
         return;
       }
-    }
-    
-    // Handle right click separately
-    if (e.button === 2) {
-      this.selectedObject = obj;
-      this.selectedObjects = [obj];
-      this.showContextMenu = true;
-      this.contextMenuX = e.clientX;
-      this.contextMenuY = e.clientY;
-      this.updateTextControls();
-      return;
     }
     
     // Left click - Selection logic
@@ -538,6 +566,61 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     this.hideContextMenu();
   }
 
+  handleSelectFocus(e: Event): void {
+    // Prevent the click from propagating to parent elements
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Get the select element
+    const select = e.target as HTMLSelectElement;
+    
+    // Stop immediate blur by setting a timeout to create a small delay
+    setTimeout(() => {
+      // Force focus back to the select element
+      select.focus();
+      
+      // Add a one-time click handler to the document that will only
+      // close the dropdown when clicking outside both the select and its options
+      const clickOutsideHandler = (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        // Check if click is outside the select element and its dropdown
+        if (!select.contains(target) && !target.closest('option')) {
+          select.blur();
+          document.removeEventListener('click', clickOutsideHandler, true);
+        }
+      };
+      
+      // Add listener with capture phase to catch events before they bubble
+      document.addEventListener('click', clickOutsideHandler, true);
+    }, 50);
+  }
+
+  handleSelectOptionClick(e: Event): void {
+    e.stopPropagation();
+    e.preventDefault();
+    // Prevent this click from closing the dropdown immediately
+    const target = e.target as HTMLOptionElement;
+    const select = target.closest('select');
+    
+    // Schedule this to happen after the option selection is processed
+    setTimeout(() => {
+      if (select) {
+        // Keep focus on select after option selection
+        select.focus();
+      }
+    }, 0);
+  }
+
+  keepDropdownOpen(select: HTMLSelectElement): void {
+    // Force the dropdown to stay open
+    const event = new MouseEvent('mousedown', {
+      view: window,
+      bubbles: true,
+      cancelable: true
+    });
+    select.dispatchEvent(event);
+  }
+
   // ====== HELPER METHODS ======
   
   getObjectProperty(obj: EditorObject, property: string): any {
@@ -618,17 +701,6 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
         // Allow normal text editing
         return;
       }
-    }
-    
-    // Handle right click separately
-    if (e.button === 2) {
-      this.selectedObject = obj;
-      this.selectedObjects = [obj];
-      this.showContextMenu = true;
-      this.contextMenuX = e.clientX;
-      this.contextMenuY = e.clientY;
-      this.updateTextControls();
-      return;
     }
     
     // Left click - Selection logic
@@ -718,6 +790,7 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   }
 
   stopPropagation(e: Event): void {
+    debugger;
     e.stopPropagation();
   }
 
@@ -746,12 +819,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
       document.addEventListener('mousemove', this.handleMouseMove);
       document.addEventListener('mouseup', this.handleMouseUp);
       
-      // Prevent context menu
-      document.addEventListener('contextmenu', (e) => {
-        if (this.editorContainer?.nativeElement.contains(e.target)) {
-          e.preventDefault();
-        }
-      });
+      // We don't need this anymore since we have the @HostListener('contextmenu')
+      // Prevent context menu using the decorator instead
     }
   }
   
@@ -1372,13 +1441,17 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   }
   
   setFontSize(event: Event): void {
+    debugger;
     if (this.selectedObject?.type !== 'text') return;
-
+  
+    // Stop propagation to prevent editor deselection
+    event.stopPropagation();
+    
     this.saveToHistory();
     
     const select = event.target as HTMLSelectElement;
     if (!select?.value) return;
-
+  
     const fontSize = select.value + 'px';
     this.applyTextFormatting('fontSize', fontSize);
     
@@ -1389,12 +1462,15 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   
   setFontFamily(event: Event): void {
     if (this.selectedObject?.type !== 'text') return;
-
+  
+    // Stop propagation to prevent editor deselection
+    event.stopPropagation();
+    
     this.saveToHistory();
     
     const select = event.target as HTMLSelectElement;
     if (!select?.value) return;
-
+  
     this.applyTextFormatting('fontName', select.value);
     
     const textObj = this.selectedObject as TextObject;

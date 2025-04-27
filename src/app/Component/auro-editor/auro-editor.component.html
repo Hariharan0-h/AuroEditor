@@ -127,30 +127,44 @@
       
       <!-- Font Properties -->
       <div class="toolbar-group" [class.hidden]="!showTextControls">
-                  <div class="font-select">
+        <div class="font-select" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
           <span>Size</span>
-          <select [ngModel]="getTextFontSize()" (change)="setFontSize($event)" (click)="$event.stopPropagation()">
-            <option value="10">10px</option>
-            <option value="12">12px</option>
-            <option value="14">14px</option>
-            <option value="16">16px</option>
-            <option value="18">18px</option>
-            <option value="20">20px</option>
-            <option value="24">24px</option>
-            <option value="32">32px</option>
-            <option value="48">48px</option>
+          <select 
+            [ngModel]="getTextFontSize()" 
+            (change)="setFontSize($event)" 
+            (click)="$event.stopPropagation()" 
+            (mousedown)="$event.stopPropagation()"
+            (focus)="handleSelectFocus($event)"
+            (blur)="$event.stopPropagation()"
+            #fontSizeSelect>
+            <option value="10" (click)="handleSelectOptionClick($event)">10px</option>
+            <option value="12" (click)="handleSelectOptionClick($event)">12px</option>
+            <option value="14" (click)="handleSelectOptionClick($event)">14px</option>
+            <option value="16" (click)="handleSelectOptionClick($event)">16px</option>
+            <option value="18" (click)="handleSelectOptionClick($event)">18px</option>
+            <option value="20" (click)="handleSelectOptionClick($event)">20px</option>
+            <option value="24" (click)="handleSelectOptionClick($event)">24px</option>
+            <option value="32" (click)="handleSelectOptionClick($event)">32px</option>
+            <option value="48" (click)="handleSelectOptionClick($event)">48px</option>
           </select>
         </div>
         
-        <div class="font-select">
+        <div class="font-select" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
           <span>Font</span>
-          <select [ngModel]="getTextFontFamily()" (change)="setFontFamily($event)" (click)="$event.stopPropagation()">
-            <option value="Inter">Inter</option>
-            <option value="Arial">Arial</option>
-            <option value="Helvetica">Helvetica</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Montserrat">Montserrat</option>
+          <select 
+            [ngModel]="getTextFontFamily()" 
+            (change)="setFontFamily($event)" 
+            (click)="$event.stopPropagation()" 
+            (mousedown)="$event.stopPropagation()"
+            (focus)="handleSelectFocus($event)"
+            (blur)="$event.stopPropagation()"
+            #fontFamilySelect>
+            <option value="Inter" (click)="handleSelectOptionClick($event)">Inter</option>
+            <option value="Arial" (click)="handleSelectOptionClick($event)">Arial</option>
+            <option value="Helvetica" (click)="handleSelectOptionClick($event)">Helvetica</option>
+            <option value="Times New Roman" (click)="handleSelectOptionClick($event)">Times New Roman</option>
+            <option value="Georgia" (click)="handleSelectOptionClick($event)">Georgia</option>
+            <option value="Montserrat" (click)="handleSelectOptionClick($event)">Montserrat</option>
           </select>
         </div>
       </div>
