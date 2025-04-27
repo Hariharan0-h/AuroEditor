@@ -271,7 +271,7 @@
   z-index: 10 !important; /* Ensure selected objects are always visible */
 }
 
-/* Resize Handles - NEW */
+/* Resize Handles */
 .resize-handles {
   position: absolute;
   top: 0;
@@ -353,7 +353,7 @@
   cursor: nwse-resize;
 }
 
-/* Rotation Handle - NEW */
+/* Rotation Handle */
 .rotate-handle {
   position: absolute;
   top: -30px; /* Position it a bit higher for better visibility */
@@ -399,7 +399,7 @@
   background-color: #e9ecef;
 }
 
-/* Group Object Styling - NEW */
+/* Group Object Styling */
 .group-object {
   position: relative;
   width: 100%;
@@ -419,19 +419,117 @@
   border-radius: 0 0 4px 0;
 }
 
-/* Text Object */
+/* Text Object - IMPROVED */
 .text-object[contenteditable="true"] {
   cursor: text;
   padding: 2px; /* Add some padding to make text easier to edit */
   width: calc(100% - 4px); /* Adjust for padding */
   height: calc(100% - 4px); /* Adjust for padding */
   white-space: pre-wrap;
-  overflow: hidden;
+  overflow: auto; /* Changed from hidden to auto to allow scrolling in large text boxes */
   outline: none; /* Remove default outline when focused */
 }
 
 .text-object[contenteditable="true"]:focus {
   box-shadow: inset 0 0 0 2px rgba(67, 97, 238, 0.3);
+}
+
+/* NEW: Styles for lists within text objects */
+.text-object ol {
+  margin: 0;
+  margin-left: 20px; /* Provide some indentation */
+  padding-left: 10px;
+}
+
+.text-object ul {
+  margin: 0;
+  margin-left: 20px; /* Provide some indentation */
+  padding-left: 10px;
+}
+
+.text-object li {
+  margin-bottom: 4px;
+}
+
+/* Table resizing styles */
+.table-object {
+  position: relative;
+}
+
+.table-object table {
+  border-collapse: collapse;
+  width: 100%;
+  height: 100%;
+}
+
+.table-object th, .table-object td {
+  border: 1px solid #ced4da;
+  padding: 6px;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.table-object th {
+  font-weight: normal;
+  border: 1px solid #ced4da;
+  padding: 6px;
+  text-align: left;
+  background-color: transparent; /* Removed gray background */
+}
+
+/* Column resize handle */
+.column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  background-color: transparent;
+  cursor: col-resize;
+}
+
+.column-resize-handle:hover, 
+.column-resize-handle:active {
+  background-color: #4361ee;
+}
+
+/* Row resize handle */
+.row-resize-handle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: transparent;
+  cursor: row-resize;
+}
+
+.row-resize-handle:hover, 
+.row-resize-handle:active {
+  background-color: #4361ee;
+}
+
+/* Show resize handles only when table is selected */
+.editor-object:not(.selected) .column-resize-handle,
+.editor-object:not(.selected) .row-resize-handle {
+  display: none;
+}
+
+/* Table cell editing */
+.table-object th[contenteditable="true"],
+.table-object td[contenteditable="true"] {
+  outline: 2px solid #4361ee;
+  z-index: 5;
+}
+
+/* Cell resize cursor */
+.table-object.column-resizing {
+  cursor: col-resize;
+}
+
+.table-object.row-resizing {
+  cursor: row-resize;
 }
 
 /* Shape Object */
@@ -468,6 +566,7 @@
 }
 
 /* Table Object */
+/* Table Object */
 .table-object {
   width: 100%;
   height: 100%;
@@ -486,7 +585,7 @@
 }
 
 .table-object th {
-  background-color: #e9ecef;
+  
   font-weight: bold;
 }
 
@@ -961,4 +1060,60 @@
   pointer-events: none;
   z-index: 1100;
   margin-bottom: 5px;
+}
+
+/* List Styling - NEW */
+/* These styles help ensure lists render properly in the editor */
+.text-object ul, .text-object ol {
+  padding-left: 25px;
+  margin: 5px 0;
+}
+
+.text-object ul li, .text-object ol li {
+  margin-bottom: 5px;
+}
+
+/* Proper bullet styling for unordered lists */
+.text-object ul {
+  list-style-type: disc;
+}
+
+.text-object ul ul {
+  list-style-type: circle;
+}
+
+.text-object ul ul ul {
+  list-style-type: square;
+}
+
+/* Proper number styling for ordered lists */
+.text-object ol {
+  list-style-type: decimal;
+}
+
+.text-object ol ol {
+  list-style-type: lower-alpha;
+}
+
+.text-object ol ol ol {
+  list-style-type: lower-roman;
+}
+
+/* Ensure caret is visible in lists for better editing */
+.text-object li {
+  min-height: 1.2em; 
+}
+
+/* Improve contenteditable container for better text editing */
+.text-object[contenteditable="true"] {
+  min-height: 1em;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Fix for ensuring cursor visibility at the end of empty lists */
+.text-object li:empty::after {
+  content: '\00a0'; /* Non-breaking space to ensure empty lines are clickable */
+  display: inline;
 }

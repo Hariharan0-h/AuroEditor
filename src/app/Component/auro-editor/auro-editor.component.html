@@ -1,473 +1,505 @@
 <div class="auro-editor">
-    <!-- Header -->
-    <header>
-      <div class="header-title">
-        <h2>Auro Editor <span class="version">Form Builder</span></h2>
+  <!-- Header -->
+  <header>
+    <div class="header-title">
+      <h2>Auro Editor <span class="version">Form Builder</span></h2>
+    </div>
+    <div class="header-actions">
+      <button class="btn primary" (click)="saveProject()">
+        <i class="fas fa-save"></i> Save
+      </button>
+      <button class="btn secondary" (click)="loadProject()">
+        <i class="fas fa-folder-open"></i> Load
+      </button>
+      <button class="btn secondary" (click)="showExportModal = true; updateExportDetails()">
+        <i class="fas fa-file-export"></i> Export
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <div class="main-container">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <!-- Object Creation -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" (click)="addTextbox()">
+          <i class="fas fa-font"></i> Text
+        </button>
+        <button class="toolbar-btn" (click)="showImageModal = true">
+          <i class="fas fa-image"></i> Image
+        </button>
+        <button class="toolbar-btn" (click)="showTableGrid = true">
+          <i class="fas fa-table"></i> Table
+        </button>
+        <button class="toolbar-btn" (click)="showFieldModal = true">
+          <i class="fas fa-code"></i> Field
+        </button>
       </div>
-      <div class="header-actions">
-        <button class="btn primary" (click)="saveProject()">
-          <i class="fas fa-save"></i> Save
+
+      <!-- Shapes -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" (click)="addShape('rectangle')">
+          <i class="fas fa-square"></i>
         </button>
-        <button class="btn secondary" (click)="loadProject()">
-          <i class="fas fa-folder-open"></i> Load
+        <button class="toolbar-btn" (click)="addShape('circle')">
+          <i class="fas fa-circle"></i>
         </button>
-        <button class="btn secondary" (click)="showExportModal = true; updateExportDetails()">
-          <i class="fas fa-file-export"></i> Export
+        <button class="toolbar-btn" (click)="addShape('vline')">
+          <i class="fas fa-grip-lines-vertical"></i>
+        </button>
+        <button class="toolbar-btn" (click)="addShape('hline')">
+          <i class="fas fa-grip-lines"></i>
         </button>
       </div>
-    </header>
-  
-    <!-- Main Content -->
-    <div class="main-container">
-      <!-- Toolbar -->
-      <div class="toolbar">
-        <!-- Object Creation -->
-        <div class="toolbar-group">
-          <button class="toolbar-btn" (click)="addTextbox()">
-            <i class="fas fa-font"></i> Text
-          </button>
-          <button class="toolbar-btn" (click)="showImageModal = true">
-            <i class="fas fa-image"></i> Image
-          </button>
-          <button class="toolbar-btn" (click)="showTableGrid = true">
-            <i class="fas fa-table"></i> Table
-          </button>
-          <button class="toolbar-btn" (click)="showFieldModal = true">
-            <i class="fas fa-code"></i> Field
-          </button>
-        </div>
-  
-        <!-- Shapes -->
-        <div class="toolbar-group">
-          <button class="toolbar-btn" (click)="addShape('rectangle')">
-            <i class="fas fa-square"></i>
-          </button>
-          <button class="toolbar-btn" (click)="addShape('circle')">
-            <i class="fas fa-circle"></i>
-          </button>
-          <button class="toolbar-btn" (click)="addShape('vline')">
-            <i class="fas fa-grip-lines-vertical"></i>
-          </button>
-          <button class="toolbar-btn" (click)="addShape('hline')">
-            <i class="fas fa-grip-lines"></i>
+      
+      <!-- Text Formatting (only shown when text is selected) -->
+      <div class="toolbar-group" [class.hidden]="!showTextControls">
+        <button class="toolbar-btn" [class.active]="isTextWithFontWeight('bold')" (click)="toggleBold()">
+          <i class="fas fa-bold"></i>
+        </button>
+        <button class="toolbar-btn" [class.active]="isTextWithFontStyle('italic')" (click)="toggleItalic()">
+          <i class="fas fa-italic"></i>
+        </button>
+        <button class="toolbar-btn" [class.active]="isTextWithTextDecoration('underline')" (click)="toggleUnderline()">
+          <i class="fas fa-underline"></i>
+        </button>
+      </div>
+      
+      <!-- List Controls -->
+      <div class="toolbar-group" [class.hidden]="!showTextControls">
+        <button class="toolbar-btn" [class.active]="isTextWithListType('ordered')" (click)="toggleOrderedList()">
+          <i class="fas fa-list-ol"></i>
+        </button>
+        <button class="toolbar-btn" [class.active]="isTextWithListType('unordered')" (click)="toggleUnorderedList()">
+          <i class="fas fa-list-ul"></i>
+        </button>
+      </div>
+      
+      <!-- Color Picker -->
+      <div class="toolbar-group" [class.hidden]="!showTextControls">
+        <div class="color-picker">
+          <div class="color-display" [style.background-color]="getTextColor()"></div>
+          <span>Color</span>
+          <input #colorInput type="color" [value]="getTextColor()" (input)="setColor($event)" style="opacity: 0; position: absolute;">
+          <button class="toolbar-btn" (click)="colorInput.click()">
+            <i class="fas fa-palette"></i>
           </button>
         </div>
-        
-        <!-- Text Formatting (only shown when text is selected) -->
-        <div class="toolbar-group" [class.hidden]="!showTextControls">
-          <button class="toolbar-btn" [class.active]="isTextWithFontWeight('bold')" (click)="toggleBold()">
-            <i class="fas fa-bold"></i>
-          </button>
-          <button class="toolbar-btn" [class.active]="isTextWithFontStyle('italic')" (click)="toggleItalic()">
-            <i class="fas fa-italic"></i>
-          </button>
-          <button class="toolbar-btn" [class.active]="isTextWithTextDecoration('underline')" (click)="toggleUnderline()">
-            <i class="fas fa-underline"></i>
-          </button>
-        </div>
-        
-        <!-- Color Picker -->
-        <div class="toolbar-group" [class.hidden]="!showTextControls">
-          <div class="color-picker">
-            <div class="color-display" [style.background-color]="getTextColor()"></div>
-            <span>Color</span>
-            <!-- Fix: Add a click handler to trigger the input -->
-            <input #colorInput type="color" [value]="getTextColor()" (input)="setColor($event)" style="opacity: 0; position: absolute;">
-            <button class="toolbar-btn" (click)="colorInput.click()">
-              <i class="fas fa-palette"></i>
-            </button>
-          </div>
+      </div>
+      
+      <!-- Font Properties -->
+      <div class="toolbar-group" [class.hidden]="!showTextControls">
+        <div class="font-select">
+          <span>Size</span>
+          <select [ngModel]="getTextFontSize()" (change)="setFontSize($event)">
+            <option value="10">10px</option>
+            <option value="12">12px</option>
+            <option value="14">14px</option>
+            <option value="16">16px</option>
+            <option value="18">18px</option>
+            <option value="20">20px</option>
+            <option value="24">24px</option>
+            <option value="32">32px</option>
+            <option value="48">48px</option>
+          </select>
         </div>
         
-        <!-- Font Properties -->
-        <div class="toolbar-group" [class.hidden]="!showTextControls">
-          <div class="font-select">
-            <span>Size</span>
-            <select [ngModel]="getTextFontSize()" (change)="setFontSize($event)">
-              <option value="10">10px</option>
-              <option value="12">12px</option>
-              <option value="14">14px</option>
-              <option value="16">16px</option>
-              <option value="18">18px</option>
-              <option value="20">20px</option>
-              <option value="24">24px</option>
-              <option value="32">32px</option>
-              <option value="48">48px</option>
-            </select>
+        <div class="font-select">
+          <span>Font</span>
+          <select [ngModel]="getTextFontFamily()" (change)="setFontFamily($event)">
+            <option value="Inter">Inter</option>
+            <option value="Arial">Arial</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Montserrat">Montserrat</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- Text Alignment -->
+      <div class="toolbar-group" [class.hidden]="!showTextControls">
+        <button class="toolbar-btn" [class.active]="isTextWithTextAlign('left')" (click)="setAlignment('left')">
+          <i class="fas fa-align-left"></i>
+        </button>
+        <button class="toolbar-btn" [class.active]="isTextWithTextAlign('center')" (click)="setAlignment('center')">
+          <i class="fas fa-align-center"></i>
+        </button>
+        <button class="toolbar-btn" [class.active]="isTextWithTextAlign('right')" (click)="setAlignment('right')">
+          <i class="fas fa-align-right"></i>
+        </button>
+      </div>
+      
+      <!-- Object Actions -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" [disabled]="!selectedObject" (click)="duplicateObject()">
+          <i class="fas fa-copy"></i> Duplicate
+        </button>
+        <button class="toolbar-btn danger" [disabled]="!selectedObject" (click)="deleteObject()">
+          <i class="fas fa-trash"></i> Delete
+        </button>
+      </div>
+
+      <!-- Alignment Tools -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Left" (click)="alignObjects('left')">
+          <i class="fas fa-align-left"></i>
+        </button>
+        <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Center" (click)="alignObjects('center')">
+          <i class="fas fa-align-center"></i>
+        </button>
+        <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Right" (click)="alignObjects('right')">
+          <i class="fas fa-align-right"></i>
+        </button>
+        <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Top" (click)="alignObjects('top')">
+          <i class="fas fa-arrow-up"></i>
+        </button>
+        <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Middle" (click)="alignObjects('middle')">
+          <i class="fas fa-arrows-alt-v"></i>
+        </button>
+        <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Bottom" (click)="alignObjects('bottom')">
+          <i class="fas fa-arrow-down"></i>
+        </button>
+      </div>
+
+      <!-- Group/Ungroup Tools -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" [disabled]="selectedObjects.length <= 1" title="Group Objects" (click)="groupObjects()">
+          <i class="fas fa-object-group"></i> Group
+        </button>
+        <button class="toolbar-btn" [disabled]="!selectedObject || selectedObject.type !== 'group'" title="Ungroup Objects" (click)="ungroupObjects()">
+          <i class="fas fa-object-ungroup"></i> Ungroup
+        </button>
+      </div>
+
+      <!-- Distribution Tools -->
+      <div class="toolbar-group">
+        <button class="toolbar-btn" [disabled]="selectedObjects.length < 3" title="Distribute Horizontally" (click)="distributeObjects('horizontal')">
+          <i class="fas fa-ellipsis-h"></i>
+        </button>
+        <button class="toolbar-btn" [disabled]="selectedObjects.length < 3" title="Distribute Vertically" (click)="distributeObjects('vertical')">
+          <i class="fas fa-ellipsis-v"></i>
+        </button>
+      </div>
+
+      <div class="toolbar-group">
+        <button class="toolbar-btn" (click)="undo()" title="Undo (Ctrl+Z)">
+          <i class="fas fa-undo"></i> Undo
+        </button>
+        <button class="toolbar-btn" (click)="redo()" title="Redo (Ctrl+Y)">
+          <i class="fas fa-redo"></i> Redo
+        </button>
+      </div>
+    </div>
+    
+    <!-- Editor Canvas -->
+    <div class="canvas-container" (click)="handleCanvasClick($event)">
+      <div class="editor" #editorContainer [style.transform]="'scale(' + zoom/100 + ')'">
+        <!-- Render each object -->
+        <div *ngFor="let obj of objects" 
+            class="editor-object" 
+            [id]="obj.id"
+            [class.selected]="obj === selectedObject || selectedObjects.includes(obj)"
+            [style.left.px]="obj.x"
+            [style.top.px]="obj.y"
+            [style.width.px]="obj.width"
+            [style.height.px]="obj.height"
+            [style.z-index]="obj.zIndex"
+            [style.transform]="'rotate(' + (obj.rotation || 0) + 'deg)'"
+            (mousedown)="selectAndStartDrag($event, obj)">
+          
+          <!-- Text Object -->
+          <div *ngIf="obj.type === 'text'" class="text-object"
+            [style.font-family]="getObjectProperty(obj, 'fontFamily')"
+            [style.font-size.px]="getObjectProperty(obj, 'fontSize')"
+            [style.font-weight]="getObjectProperty(obj, 'fontWeight')"
+            [style.font-style]="getObjectProperty(obj, 'fontStyle')"
+            [style.text-decoration]="getObjectProperty(obj, 'textDecoration')"
+            [style.color]="getObjectProperty(obj, 'color')"
+            [style.text-align]="getObjectProperty(obj, 'textAlign')"
+            [attr.contenteditable]="obj === selectedObject ? 'true' : 'false'"
+            (blur)="updateTextContent($event, obj)"
+            [innerHTML]="obj === selectedObject ? null : getObjectProperty(obj, 'text')"
+            (click)="$event.stopPropagation()">
           </div>
           
-          <div class="font-select">
-            <span>Font</span>
-            <select [ngModel]="getTextFontFamily()" (change)="setFontFamily($event)">
-              <option value="Inter">Inter</option>
-              <option value="Arial">Arial</option>
-              <option value="Helvetica">Helvetica</option>
-              <option value="Times New Roman">Times New Roman</option>
-              <option value="Georgia">Georgia</option>
-              <option value="Montserrat">Montserrat</option>
-            </select>
-          </div>
-        </div>
-        
-        <!-- Text Alignment -->
-        <div class="toolbar-group" [class.hidden]="!showTextControls">
-          <button class="toolbar-btn" [class.active]="isTextWithTextAlign('left')" (click)="setAlignment('left')">
-            <i class="fas fa-align-left"></i>
-          </button>
-          <button class="toolbar-btn" [class.active]="isTextWithTextAlign('center')" (click)="setAlignment('center')">
-            <i class="fas fa-align-center"></i>
-          </button>
-          <button class="toolbar-btn" [class.active]="isTextWithTextAlign('right')" (click)="setAlignment('right')">
-            <i class="fas fa-align-right"></i>
-          </button>
-        </div>
-        
-        <!-- Object Actions -->
-        <div class="toolbar-group">
-          <button class="toolbar-btn" [disabled]="!selectedObject" (click)="duplicateObject()">
-            <i class="fas fa-copy"></i> Duplicate
-          </button>
-          <button class="toolbar-btn danger" [disabled]="!selectedObject" (click)="deleteObject()">
-            <i class="fas fa-trash"></i> Delete
-          </button>
-        </div>
-  
-        <!-- Alignment Tools (NEW) -->
-        <div class="toolbar-group">
-          <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Left" (click)="alignObjects('left')">
-            <i class="fas fa-align-left"></i>
-          </button>
-          <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Center" (click)="alignObjects('center')">
-            <i class="fas fa-align-center"></i>
-          </button>
-          <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Right" (click)="alignObjects('right')">
-            <i class="fas fa-align-right"></i>
-          </button>
-          <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Top" (click)="alignObjects('top')">
-            <i class="fas fa-arrow-up"></i>
-          </button>
-          <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Middle" (click)="alignObjects('middle')">
-            <i class="fas fa-arrows-alt-v"></i>
-          </button>
-          <button class="toolbar-btn" [disabled]="!selectedObject" title="Align Bottom" (click)="alignObjects('bottom')">
-            <i class="fas fa-arrow-down"></i>
-          </button>
-        </div>
-  
-        <!-- Group/Ungroup Tools (NEW) -->
-        <div class="toolbar-group">
-          <button class="toolbar-btn" [disabled]="selectedObjects.length <= 1" title="Group Objects" (click)="groupObjects()">
-            <i class="fas fa-object-group"></i> Group
-          </button>
-          <button class="toolbar-btn" [disabled]="!selectedObject || selectedObject.type !== 'group'" title="Ungroup Objects" (click)="ungroupObjects()">
-            <i class="fas fa-object-ungroup"></i> Ungroup
-          </button>
-        </div>
-  
-        <!-- Distribution Tools (NEW) -->
-        <div class="toolbar-group">
-          <button class="toolbar-btn" [disabled]="selectedObjects.length < 3" title="Distribute Horizontally" (click)="distributeObjects('horizontal')">
-            <i class="fas fa-ellipsis-h"></i>
-          </button>
-          <button class="toolbar-btn" [disabled]="selectedObjects.length < 3" title="Distribute Vertically" (click)="distributeObjects('vertical')">
-            <i class="fas fa-ellipsis-v"></i>
-          </button>
-        </div>
-
-        <div class="toolbar-group">
-          <button class="toolbar-btn" (click)="undo()" title="Undo (Ctrl+Z)">
-            <i class="fas fa-undo"></i> Undo
-          </button>
-          <button class="toolbar-btn" (click)="redo()" title="Redo (Ctrl+Y)">
-            <i class="fas fa-redo"></i> Redo
-          </button>
-        </div>
-      </div>
-      
-      <!-- Editor Canvas -->
-      <div class="canvas-container" (click)="handleCanvasClick($event)">
-        <div class="editor" #editorContainer [style.transform]="'scale(' + zoom/100 + ')'">
-          <!-- Render each object -->
-          <div *ngFor="let obj of objects" 
-              class="editor-object" 
-              [id]="obj.id"
-              [class.selected]="obj === selectedObject || selectedObjects.includes(obj)"
-              [style.left.px]="obj.x"
-              [style.top.px]="obj.y"
-              [style.width.px]="obj.width"
-              [style.height.px]="obj.height"
-              [style.z-index]="obj.zIndex"
-              [style.transform]="'rotate(' + (obj.rotation || 0) + 'deg)'"
-              (mousedown)="selectAndStartDrag($event, obj)">
-            
-            <!-- Text Object -->
-            <div *ngIf="obj.type === 'text'" class="text-object"
-              [style.font-family]="getObjectProperty(obj, 'fontFamily')"
-              [style.font-size.px]="getObjectProperty(obj, 'fontSize')"
-              [style.font-weight]="getObjectProperty(obj, 'fontWeight')"
-              [style.font-style]="getObjectProperty(obj, 'fontStyle')"
-              [style.text-decoration]="getObjectProperty(obj, 'textDecoration')"
-              [style.color]="getObjectProperty(obj, 'color')"
-              [style.text-align]="getObjectProperty(obj, 'textAlign')"
-              [attr.contenteditable]="obj === selectedObject ? 'true' : 'false'"
-              (input)="updateTextContent($event, obj)"
-              (click)="$event.stopPropagation()">
-              {{getObjectProperty(obj, 'text')}}
-          </div>
-            
-            <!-- Shape Object -->
-            <div *ngIf="obj.type === 'shape'" class="shape-object">
-              <!-- Rectangle -->
-              <div *ngIf="getObjectProperty(obj, 'shapeType') === 'rectangle'" class="shape rectangle"
-                  [style.background-color]="getObjectProperty(obj, 'fillColor')"
-                  [style.border]="getObjectProperty(obj, 'strokeWidth') + 'px solid ' + getObjectProperty(obj, 'strokeColor')">
-              </div>
-              
-              <!-- Circle -->
-              <div *ngIf="getObjectProperty(obj, 'shapeType') === 'circle'" class="shape circle"
-                  [style.background-color]="getObjectProperty(obj, 'fillColor')"
-                  [style.border]="getObjectProperty(obj, 'strokeWidth') + 'px solid ' + getObjectProperty(obj, 'strokeColor')">
-              </div>
-              
-              <!-- Vertical Line -->
-              <div *ngIf="getObjectProperty(obj, 'shapeType') === 'vline'" class="shape vline"
-                  [style.background-color]="getObjectProperty(obj, 'strokeColor')"
-                  [style.width.px]="getObjectProperty(obj, 'strokeWidth')">
-              </div>
-              
-              <!-- Horizontal Line -->
-              <div *ngIf="getObjectProperty(obj, 'shapeType') === 'hline'" class="shape hline"
-                  [style.background-color]="getObjectProperty(obj, 'strokeColor')"
-                  [style.height.px]="getObjectProperty(obj, 'strokeWidth')">
-              </div>
+          <!-- Shape Object -->
+          <div *ngIf="obj.type === 'shape'" class="shape-object">
+            <!-- Rectangle -->
+            <div *ngIf="getObjectProperty(obj, 'shapeType') === 'rectangle'" class="shape rectangle"
+                [style.background-color]="getObjectProperty(obj, 'fillColor')"
+                [style.border]="getObjectProperty(obj, 'strokeWidth') + 'px solid ' + getObjectProperty(obj, 'strokeColor')">
             </div>
             
-            <!-- Image Object -->
-            <img *ngIf="obj.type === 'image'" [src]="getObjectProperty(obj, 'src')" class="image-object" alt="Uploaded image">
+            <!-- Circle -->
+            <div *ngIf="getObjectProperty(obj, 'shapeType') === 'circle'" class="shape circle"
+                [style.background-color]="getObjectProperty(obj, 'fillColor')"
+                [style.border]="getObjectProperty(obj, 'strokeWidth') + 'px solid ' + getObjectProperty(obj, 'strokeColor')">
+            </div>
             
-            <!-- Table Object -->
-            <div *ngIf="obj.type === 'table'" class="table-object">
-              <table>
-                <tr *ngFor="let r of createArrayForTable(obj, 'rows')">
-                  <td *ngFor="let c of createArrayForTable(obj, 'cols')">
-                  </td>
+            <!-- Vertical Line -->
+            <div *ngIf="getObjectProperty(obj, 'shapeType') === 'vline'" class="shape vline"
+                [style.background-color]="getObjectProperty(obj, 'strokeColor')"
+                [style.width.px]="getObjectProperty(obj, 'strokeWidth')">
+            </div>
+            
+            <!-- Horizontal Line -->
+            <div *ngIf="getObjectProperty(obj, 'shapeType') === 'hline'" class="shape hline"
+                [style.background-color]="getObjectProperty(obj, 'strokeColor')"
+                [style.height.px]="getObjectProperty(obj, 'strokeWidth')">
+            </div>
+          </div>
+          
+          <!-- Image Object -->
+          <img *ngIf="obj.type === 'image'" [src]="getObjectProperty(obj, 'src')" class="image-object" alt="Uploaded image">
+          
+          <!-- Table Object -->
+          <div *ngIf="obj.type === 'table'" class="table-object">
+            <table>
+              <ng-container *ngFor="let r of createArrayForTable(obj, 'rows'); let rowIndex = index">
+                <tr>
+                  <ng-container *ngIf="rowIndex === 0">
+                    <th *ngFor="let c of createArrayForTable(obj, 'cols'); let colIndex = index" 
+                        [ngStyle]="getCustomCellStyle(obj, rowIndex, colIndex)"
+                        (mousedown)="editTableCell($event, obj, rowIndex, colIndex)"
+                        (blur)="updateTableCellContent($event, obj, rowIndex, colIndex)">
+                      {{ getCellContent(obj, rowIndex, colIndex) }}
+                      <!-- Column resize handle -->
+                      <div *ngIf="obj === selectedObject && isTableObject(obj)" 
+                           class="column-resize-handle"
+                           (mousedown)="startColumnResize($event, obj, colIndex)"></div>
+                    </th>
+                  </ng-container>
+                  <ng-container *ngIf="rowIndex > 0">
+                    <td *ngFor="let c of createArrayForTable(obj, 'cols'); let colIndex = index"
+                        [ngStyle]="getCustomCellStyle(obj, rowIndex, colIndex)"
+                        (mousedown)="editTableCell($event, obj, rowIndex, colIndex)"
+                        (blur)="updateTableCellContent($event, obj, rowIndex, colIndex)">
+                      {{ getCellContent(obj, rowIndex, colIndex) }}
+                    </td>
+                  </ng-container>
+                  <!-- Row resize handle -->
+                  <div *ngIf="obj === selectedObject && isTableObject(obj)" 
+                       class="row-resize-handle"
+                       (mousedown)="startRowResize($event, obj, rowIndex)"></div>
                 </tr>
-              </table>
-            </div>
-  
-            <!-- Group Object (NEW) -->
-            <div *ngIf="obj.type === 'group'" class="group-object">
-              <!-- Nested objects would be rendered in SVG for the actual implementation -->
-              <div class="group-indicator">Group</div>
-            </div>
+              </ng-container>
+            </table>
+          </div>
+
+          <!-- Group Object -->
+          <div *ngIf="obj.type === 'group'" class="group-object">
+            <div class="group-indicator">Group</div>
+          </div>
+          
+          <!-- Resize Handles - Only show for selected object -->
+          <div *ngIf="obj === selectedObject" class="resize-handles">
+            <div class="resize-handle n" data-handle="n" title="Resize" (mousedown)="startResize($event, 'n')"></div>
+            <div class="resize-handle e" data-handle="e" title="Resize" (mousedown)="startResize($event, 'e')"></div>
+            <div class="resize-handle s" data-handle="s" title="Resize" (mousedown)="startResize($event, 's')"></div>
+            <div class="resize-handle w" data-handle="w" title="Resize" (mousedown)="startResize($event, 'w')"></div>
+            <div class="resize-handle ne" data-handle="ne" title="Resize" (mousedown)="startResize($event, 'ne')"></div>
+            <div class="resize-handle se" data-handle="se" title="Resize" (mousedown)="startResize($event, 'se')"></div>
+            <div class="resize-handle sw" data-handle="sw" title="Resize" (mousedown)="startResize($event, 'sw')"></div>
+            <div class="resize-handle nw" data-handle="nw" title="Resize" (mousedown)="startResize($event, 'nw')"></div>
             
-            <!-- Resize Handles (NEW) - Only show for selected object -->
-            <div *ngIf="obj === selectedObject" class="resize-handles">
-              <div class="resize-handle n" data-handle="n" title="Resize" (mousedown)="startResize($event, 'n')"></div>
-              <div class="resize-handle e" data-handle="e" title="Resize" (mousedown)="startResize($event, 'e')"></div>
-              <div class="resize-handle s" data-handle="s" title="Resize" (mousedown)="startResize($event, 's')"></div>
-              <div class="resize-handle w" data-handle="w" title="Resize" (mousedown)="startResize($event, 'w')"></div>
-              <div class="resize-handle ne" data-handle="ne" title="Resize" (mousedown)="startResize($event, 'ne')"></div>
-              <div class="resize-handle se" data-handle="se" title="Resize" (mousedown)="startResize($event, 'se')"></div>
-              <div class="resize-handle sw" data-handle="sw" title="Resize" (mousedown)="startResize($event, 'sw')"></div>
-              <div class="resize-handle nw" data-handle="nw" title="Resize" (mousedown)="startResize($event, 'nw')"></div>
-              
-              <!-- Rotation Handle -->
-              <div class="rotate-handle" title="Rotate" (mousedown)="startRotate($event)">
-                <i class="fas fa-sync-alt"></i>
-              </div>
+            <!-- Rotation Handle -->
+            <div class="rotate-handle" title="Rotate" (mousedown)="startRotate($event)">
+              <i class="fas fa-sync-alt"></i>
             </div>
           </div>
         </div>
-        
-        <!-- Table Grid Selector -->
-        <div *ngIf="showTableGrid" class="table-grid">
-          <div class="grid-title">Insert Table</div>
-          <div class="grid-container">
-            <div *ngFor="let i of createArray(100); let idx = index" 
-                class="grid-cell" 
-                [class.selected]="getGridCellClass(idx) === 'selected'"
-                (mouseover)="highlightGrid(getRowFromIndex(idx), getColFromIndex(idx))" 
-                (click)="insertTable(tableRows, tableCols)">
-            </div>
-          </div>
-          <div class="grid-dimensions">{{ tableRows }} x {{ tableCols }}</div>
-          <button class="btn secondary" (click)="showTableGrid = false">Cancel</button>
-        </div>
-        
-        <!-- Page Controls -->
-        <div class="page-controls">
-            <button class="page-btn" [disabled]="currentPage === 0" (click)="navigatePage(-1)">
-              <i class="fas fa-chevron-left"></i>
-            </button>
-            <div class="page-indicator">
-              Page {{ currentPage + 1 }} of {{ pages.length }}
-            </div>
-            <button class="page-btn" [disabled]="currentPage === pages.length - 1" (click)="navigatePage(1)">
-              <i class="fas fa-chevron-right"></i>
-            </button>
-            <button class="page-btn add" (click)="addPage()">
-              <i class="fas fa-plus"></i> Add Page
-            </button>
-        </div>
-        
-        <!-- Zoom Controls -->
-        <div class="zoom-controls">
-            <button class="zoom-btn" (click)="adjustZoom(-10)">
-              <i class="fas fa-minus"></i>
-            </button>
-            <div class="zoom-level">{{ zoom }}%</div>
-            <button class="zoom-btn" (click)="adjustZoom(10)">
-              <i class="fas fa-plus"></i>
-            </button>
-          </div>
       </div>
       
-      <!-- Status Bar -->
-      <div class="status-bar">
-        <div class="status-item">
-          <i class="fas fa-mouse-pointer"></i>
-          <span>x: {{ cursorPosition.x }}, y: {{ cursorPosition.y }}</span>
-        </div>
-        <div class="status-item">
-          <i class="fas fa-info-circle"></i>
-          <span>{{ selectedObject ? selectedObject.type + ' selected' : 'No selection' }}</span>
-        </div>
-        <div class="status-item" *ngIf="selectedObject">
-          <i class="fas fa-arrows-alt"></i>
-          <span>Size: {{ selectedObject.width }}x{{ selectedObject.height }}</span>
-        </div>
-        <div class="status-item" *ngIf="selectedObject && selectedObject.rotation !== undefined">
-          <i class="fas fa-sync-alt"></i>
-          <span>Rotation: {{ selectedObject.rotation }}°</span>
-        </div>
-        <div class="status-item" *ngIf="selectedObjects.length > 1">
-          <i class="fas fa-object-group"></i>
-          <span>{{ selectedObjects.length }} objects selected</span>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Context Menu -->
-    <div *ngIf="showContextMenu" class="context-menu" 
-         [style.left.px]="contextMenuX" 
-         [style.top.px]="contextMenuY">
-      <div class="context-menu-item" (click)="duplicateObject(); hideContextMenu()">
-        <i class="fas fa-copy"></i> Duplicate
-      </div>
-      <div class="context-menu-item" (click)="bringToFront(selectedObject!); hideContextMenu()">
-        <i class="fas fa-level-up-alt"></i> Bring to Front
-      </div>
-      <div class="context-menu-item" (click)="sendToBack(selectedObject!); hideContextMenu()">
-        <i class="fas fa-level-down-alt"></i> Send to Back
-      </div>
-      <!-- New Context Menu Items for Rotation -->
-      <div class="context-menu-item" (click)="selectedObject && (selectedObject.rotation = 0); hideContextMenu()">
-        <i class="fas fa-undo"></i> Reset Rotation
-      </div>
-      <div class="context-menu-item" (click)="selectedObject && (selectedObject.rotation = (selectedObject.rotation || 0) + 90); hideContextMenu()">
-        <i class="fas fa-redo"></i> Rotate 90°
-      </div>
-      <div class="context-menu-divider"></div>
-      <!-- Group/Ungroup in Context Menu -->
-      <div *ngIf="selectedObjects.length > 1" class="context-menu-item" (click)="groupObjects(); hideContextMenu()">
-        <i class="fas fa-object-group"></i> Group Objects
-      </div>
-      <div *ngIf="selectedObject?.type === 'group'" class="context-menu-item" (click)="ungroupObjects(); hideContextMenu()">
-        <i class="fas fa-object-ungroup"></i> Ungroup
-      </div>
-      <div class="context-menu-divider"></div>
-      <div class="context-menu-item danger" (click)="deleteObject(); hideContextMenu()">
-        <i class="fas fa-trash"></i> Delete
-      </div>
-    </div>
-    
-    <!-- Modals -->
-    <!-- Image Upload Modal -->
-    <div *ngIf="showImageModal" class="modal">
-      <div class="modal-backdrop" (click)="showImageModal = false"></div>
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Upload Image</h3>
-          <button class="close-btn" (click)="showImageModal = false">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Select an image</label>
-            <div class="file-upload">
-              <input type="file" accept="image/*" (change)="uploadImage($event)">
-              <div class="upload-placeholder">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <span>Click to browse or drag image here</span>
-              </div>
-            </div>
+      <!-- Table Grid Selector -->
+      <div *ngIf="showTableGrid" class="table-grid">
+        <div class="grid-title">Insert Table</div>
+        <div class="grid-container">
+          <div *ngFor="let i of createArray(100); let idx = index" 
+              class="grid-cell" 
+              [class.selected]="getGridCellClass(idx) === 'selected'"
+              (mouseover)="highlightGrid(getRowFromIndex(idx), getColFromIndex(idx))" 
+              (click)="insertTable(tableRows, tableCols)">
           </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn secondary" (click)="showImageModal = false">Cancel</button>
-        </div>
+        <div class="grid-dimensions">{{ tableRows }} x {{ tableCols }}</div>
+        <button class="btn secondary" (click)="showTableGrid = false">Cancel</button>
       </div>
+      
+      <!-- Page Controls -->
+      <div class="page-controls">
+          <button class="page-btn" [disabled]="currentPage === 0" (click)="navigatePage(-1)">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <div class="page-indicator">
+            Page {{ currentPage + 1 }} of {{ pages.length }}
+          </div>
+          <button class="page-btn" [disabled]="currentPage === pages.length - 1" (click)="navigatePage(1)">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+          <button class="page-btn add" (click)="addPage()">
+            <i class="fas fa-plus"></i> Add Page
+          </button>
+      </div>
+      
+      <!-- Zoom Controls -->
+      <div class="zoom-controls">
+          <button class="zoom-btn" (click)="adjustZoom(-10)">
+            <i class="fas fa-minus"></i>
+          </button>
+          <div class="zoom-level">{{ zoom }}%</div>
+          <button class="zoom-btn" (click)="adjustZoom(10)">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
     </div>
     
-    <!-- Export Modal -->
-    <div *ngIf="showExportModal" class="modal">
-      <div class="modal-backdrop" (click)="showExportModal = false"></div>
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Export Project</h3>
-          <button class="close-btn" (click)="showExportModal = false">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Export Format</label>
-            <select [(ngModel)]="exportFormat" (change)="updateExportDetails()">
-              <option value="svg">SVG - Vector Graphics</option>
-              <option value="png">PNG - Image</option>
-              <option value="json">JSON - Project File</option>
-              <option value="html">HTML - Web Page</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Details</label>
-            <div class="info-box">{{ exportDetails }}</div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn secondary" (click)="showExportModal = false">Cancel</button>
-          <button class="btn primary" (click)="downloadExport()">Download</button>
-        </div>
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-item">
+        <i class="fas fa-mouse-pointer"></i>
+        <span>x: {{ cursorPosition.x }}, y: {{ cursorPosition.y }}</span>
       </div>
-    </div>
-    
-    <!-- Field Modal -->
-    <div *ngIf="showFieldModal" class="modal">
-      <div class="modal-backdrop" (click)="showFieldModal = false"></div>
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Insert Field</h3>
-          <button class="close-btn" (click)="showFieldModal = false">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="field-grid">
-            <div *ngFor="let field of fieldTypes" 
-                 class="field-item" 
-                 (click)="insertField(field.type)">
-              <i [class]="field.icon"></i>
-              <span>{{ field.label }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn secondary" (click)="showFieldModal = false">Cancel</button>
-        </div>
+      <div class="status-item">
+        <i class="fas fa-info-circle"></i>
+        <span>{{ selectedObject ? selectedObject.type + ' selected' : 'No selection' }}</span>
       </div>
-    </div>
-    
-    <!-- Notification -->
-    <div *ngIf="showNotification" class="notification" [ngClass]="notificationType">
-      <i *ngIf="notificationType === 'success'" class="fas fa-check-circle"></i>
-      <i *ngIf="notificationType === 'warning'" class="fas fa-exclamation-triangle"></i>
-      <i *ngIf="notificationType === 'error'" class="fas fa-times-circle"></i>
-      <span>{{ notification }}</span>
+      <div class="status-item" *ngIf="selectedObject">
+        <i class="fas fa-arrows-alt"></i>
+        <span>Size: {{ selectedObject.width }}x{{ selectedObject.height }}</span>
+      </div>
+      <div class="status-item" *ngIf="selectedObject && selectedObject.rotation !== undefined">
+        <i class="fas fa-sync-alt"></i>
+        <span>Rotation: {{ selectedObject.rotation }}°</span>
+      </div>
+      <div class="status-item" *ngIf="selectedObjects.length > 1">
+        <i class="fas fa-object-group"></i>
+        <span>{{ selectedObjects.length }} objects selected</span>
+      </div>
     </div>
   </div>
+  
+  <!-- Context Menu -->
+  <div *ngIf="showContextMenu" class="context-menu" 
+       [style.left.px]="contextMenuX" 
+       [style.top.px]="contextMenuY">
+    <div class="context-menu-item" (click)="duplicateObject(); hideContextMenu()">
+      <i class="fas fa-copy"></i> Duplicate
+    </div>
+    <div class="context-menu-item" (click)="bringToFront(selectedObject!); hideContextMenu()">
+      <i class="fas fa-level-up-alt"></i> Bring to Front
+    </div>
+    <div class="context-menu-item" (click)="sendToBack(selectedObject!); hideContextMenu()">
+      <i class="fas fa-level-down-alt"></i> Send to Back
+    </div>
+    <!-- Context Menu Items for Rotation -->
+    <div class="context-menu-item" (click)="selectedObject && (selectedObject.rotation = 0); hideContextMenu()">
+      <i class="fas fa-undo"></i> Reset Rotation
+    </div>
+    <div class="context-menu-item" (click)="selectedObject && (selectedObject.rotation = ((selectedObject.rotation || 0) + 90) % 360); hideContextMenu()">
+      <i class="fas fa-redo"></i> Rotate 90°
+    </div>
+    <div class="context-menu-divider"></div>
+    <!-- Group/Ungroup in Context Menu -->
+    <div *ngIf="selectedObjects.length > 1" class="context-menu-item" (click)="groupObjects(); hideContextMenu()">
+      <i class="fas fa-object-group"></i> Group Objects
+    </div>
+    <div *ngIf="selectedObject?.type === 'group'" class="context-menu-item" (click)="ungroupObjects(); hideContextMenu()">
+      <i class="fas fa-object-ungroup"></i> Ungroup
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item danger" (click)="deleteObject(); hideContextMenu()">
+      <i class="fas fa-trash"></i> Delete
+    </div>
+  </div>
+  
+  <!-- Modals -->
+  <!-- Image Upload Modal -->
+  <div *ngIf="showImageModal" class="modal">
+    <div class="modal-backdrop" (click)="showImageModal = false"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Upload Image</h3>
+        <button class="close-btn" (click)="showImageModal = false">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Select an image</label>
+          <div class="file-upload">
+            <input type="file" accept="image/*" (change)="uploadImage($event)">
+            <div class="upload-placeholder">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <span>Click to browse or drag image here</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn secondary" (click)="showImageModal = false">Cancel</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Export Modal -->
+  <div *ngIf="showExportModal" class="modal">
+    <div class="modal-backdrop" (click)="showExportModal = false"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Export Project</h3>
+        <button class="close-btn" (click)="showExportModal = false">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Export Format</label>
+          <select [(ngModel)]="exportFormat" (change)="updateExportDetails()">
+            <option value="svg">SVG - Vector Graphics</option>
+            <option value="png">PNG - Image</option>
+            <option value="json">JSON - Project File</option>
+            <option value="html">HTML - Web Page</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Details</label>
+          <div class="info-box">{{ exportDetails }}</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn secondary" (click)="showExportModal = false">Cancel</button>
+        <button class="btn primary" (click)="downloadExport()">Download</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Field Modal -->
+  <div *ngIf="showFieldModal" class="modal">
+    <div class="modal-backdrop" (click)="showFieldModal = false"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Insert Field</h3>
+        <button class="close-btn" (click)="showFieldModal = false">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-grid">
+          <div *ngFor="let field of fieldTypes" 
+               class="field-item" 
+               (click)="insertField(field.type)">
+            <i [class]="field.icon"></i>
+            <span>{{ field.label }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn secondary" (click)="showFieldModal = false">Cancel</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Notification -->
+  <div *ngIf="showNotification" class="notification" [ngClass]="notificationType">
+    <i *ngIf="notificationType === 'success'" class="fas fa-check-circle"></i>
+    <i *ngIf="notificationType === 'warning'" class="fas fa-exclamation-triangle"></i>
+    <i *ngIf="notificationType === 'error'" class="fas fa-times-circle"></i>
+    <span>{{ notification }}</span>
+  </div>
+</div>

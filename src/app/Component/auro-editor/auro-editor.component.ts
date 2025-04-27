@@ -23,6 +23,7 @@ export interface TextObject extends EditorObject {
   textDecoration: string;
   color: string;
   textAlign: string;
+  listType?: 'ordered' | 'unordered' | null;
 }
 
 export interface ShapeObject extends EditorObject {
@@ -41,6 +42,16 @@ export interface TableObject extends EditorObject {
   cols: number;
   cellWidth: number;
   cellHeight: number;
+  customCells: {
+    row: number;
+    col: number;
+    width: number;
+    height: number;
+  }[];
+  headerHeight?: number;
+  columnWidths?: number[];
+  rowHeights?: number[];
+  cellData?: string[][];
 }
 
 export interface GroupObject extends EditorObject {
@@ -106,6 +117,23 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   showFieldModal = false;
   showTableGrid = false;
   
+  // Table cell resize modal
+  showTableCellModal = false;
+  currentTableCell = { 
+    tableId: '', 
+    row: 0, 
+    col: 0, 
+    width: 80, 
+    height: 30 
+  };
+  
+  // Table resize states
+  isResizingColumn = false;
+  isResizingRow = false;
+  isResizingCell = false;
+  currentResizeIndex = -1;
+  resizeStartSize = 0;
+  
   // Current position
   cursorPosition = { x: 0, y: 0 };
   
@@ -165,6 +193,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     setTimeout(() => this.addTextbox(), 100);
   }
 
+  // ====== IMPROVED TEXT HANDLING SECTION ======
+  
   private saveTextCursorPosition(): void {
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
@@ -182,8 +212,92 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     }
   }
 
+  focusTextForEditing(textObj: TextObject): void {
+    setTimeout(() => {
+      // Find the text element
+      const selector = `[id="${textObj.id}"] .text-object`;
+      const textElement = document.querySelector(selector) as HTMLElement;
+      
+      if (textElement) {
+        // Set the content directly before focusing to avoid issues
+        textElement.innerHTML = textObj.text || '';
+        
+        // Set focus
+        textElement.focus();
+        
+        // Place cursor at the end of text
+        const range = document.createRange();
+        const selection = window.getSelection();
+        
+        // If text is empty, just focus on the element
+        if (textElement.childNodes.length === 0) {
+          textElement.focus();
+          return;
+        }
+        
+        // Otherwise, set cursor at the end
+        const lastChild = textElement.lastChild as Node;
+        if (lastChild.nodeType === Node.TEXT_NODE) {
+          range.setStart(lastChild, lastChild.textContent?.length || 0);
+        } else {
+          range.selectNodeContents(lastChild);
+          range.collapse(false); // collapse to end
+        }
+        
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+    }, 50);
+  }
+
+  updateTextDirectly(obj: TextObject): void {
+    if (!obj) return;
+    
+    const textElement = document.querySelector(`[id="${obj.id}"] .text-object`) as HTMLElement;
+    if (!textElement) return;
+    
+    // Save state for undo before changing text
+    this.saveToHistory();
+    
+    // Update the text property with the current HTML content
+    obj.text = textElement.innerHTML;
+  }
+  
+  updateTextContent(e: Event, obj: EditorObject): void {
+    if (obj.type !== 'text') return;
+    
+    // Save state for undo before changing text
+    this.saveToHistory();
+    
+    // Save current cursor position
+    this.saveTextCursorPosition();
+    
+    const target = e.target as HTMLElement;
+    
+    // Update the text property
+    (obj as TextObject).text = target.innerHTML;
+    
+    // Restore cursor position after a short delay to allow for rendering
+    setTimeout(() => this.restoreTextCursorPosition(), 0);
+  }
+
+  // ====== IMPROVED EVENT HANDLING SECTION ======
+
   @HostListener('window:keydown', ['$event'])
   onKeyDown(e: KeyboardEvent): void {
+    // Don't handle keyboard shortcuts if actively editing text
+    if (this.selectedObject?.type === 'text' && 
+        document.activeElement?.getAttribute('contenteditable') === 'true') {
+      // Only handle Escape to exit text editing mode
+      if (e.key === 'Escape') {
+        (document.activeElement as HTMLElement).blur();
+        e.preventDefault();
+      }
+      return;
+    }
+    
     if (e.key === 'Delete' && this.selectedObject) {
       this.deleteObject();
     }
@@ -218,18 +332,39 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     
     // Shift for multi-select mode
     this.isMultiSelect = e.shiftKey;
+  }
 
-    if (this.selectedObject?.type === 'text' && 
-        document.activeElement?.getAttribute('contenteditable') === 'true') {
-      // Don't handle selection keyboard shortcuts while editing text
+  @HostListener('window:keyup', ['$event'])
+  onKeyUp(e: KeyboardEvent): void {
+    // Turn off multi-select mode when shift key is released
+    if (e.key === 'Shift') {
+      this.isMultiSelect = false;
+    }
+  }
+
+  @HostListener('input', ['$event'])
+  onTextInput(e: Event): void {
+    if (!e.target || !(e.target as HTMLElement).classList.contains('text-object')) {
       return;
     }
-  
-  // Ensure Tab works as expected
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      // Handle tab navigation if needed (e.g., move between form fields)
-    }
+    
+    // Save cursor position
+    this.saveTextCursorPosition();
+    
+    const textElement = e.target as HTMLElement;
+    const objId = textElement.closest('.editor-object')?.id;
+    
+    if (!objId) return;
+    
+    // Find the corresponding object
+    const obj = this.objects.find(o => o.id === objId);
+    if (!obj || obj.type !== 'text') return;
+    
+    // Update the text property
+    (obj as TextObject).text = textElement.innerHTML;
+    
+    // Restore cursor position on next tick
+    setTimeout(() => this.restoreTextCursorPosition(), 0);
   }
 
   @HostListener('paste', ['$event'])
@@ -255,94 +390,7 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     }
   }
 
-  @HostListener('window:keyup', ['$event'])
-  onKeyUp(e: KeyboardEvent): void {
-    // Turn off multi-select mode when shift key is released
-    if (e.key === 'Shift') {
-      this.isMultiSelect = false;
-    }
-  }
-
-  updateTextDirectly(textElement: HTMLElement, obj: TextObject): void {
-    if (!textElement || !obj) return;
-    
-    // Save state for undo before changing text
-    this.saveToHistory();
-    
-    // Direct assignment without any string manipulation
-    obj.text = textElement.innerHTML;
-  }
-  
-  // Add this event handler to your component
-  @HostListener('input', ['$event'])
-  onTextInput(e: Event): void {
-    // Only process if this is a text input event
-    if (!e.target || !(e.target as HTMLElement).classList.contains('text-object')) {
-      return;
-    }
-    
-    const textElement = e.target as HTMLElement;
-    const objId = textElement.closest('.editor-object')?.id;
-    
-    if (!objId) return;
-    
-    // Find the corresponding object
-    const obj = this.objects.find(o => o.id === objId);
-    if (!obj || obj.type !== 'text') return;
-    
-    // Update the text directly
-    this.updateTextDirectly(textElement, obj as TextObject);
-  }
-
-  focusTextForEditing(textObj: TextObject): void {
-    setTimeout(() => {
-      // Find the text element
-      const selector = `[id="${textObj.id}"] .text-object`;
-      const textElement = document.querySelector(selector) as HTMLElement;
-      
-      if (textElement) {
-        // Set focus
-        textElement.focus();
-        
-        // Place cursor at the end of text
-        const range = document.createRange();
-        const selection = window.getSelection();
-        
-        // If text is empty, just focus on the element
-        if (textElement.childNodes.length === 0) {
-          textElement.focus();
-          return;
-        }
-        
-        // Otherwise, set cursor at the end
-        const lastChild = textElement.childNodes[textElement.childNodes.length - 1];
-        if (lastChild.nodeType === Node.TEXT_NODE) {
-          range.setStart(lastChild, lastChild.textContent?.length || 0);
-        } else {
-          range.selectNodeContents(lastChild);
-          range.collapse(false); // collapse to end
-        }
-        
-        if (selection) {
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      }
-    }, 50);
-  }
-
-  // Helper methods for safely accessing properties
-  getObjectProperty(obj: EditorObject, property: string): any {
-    if (!obj) return null;
-    
-    // Special handling for text property to prevent any manipulation
-    if (property === 'text' && obj.type === 'text') {
-      return (obj as TextObject).text;
-    }
-    
-    // Regular property access for other properties
-    return (obj as any)[property];
-  }
+  // ====== SELECTION AND DRAG HANDLING ======
   
   selectAndStartDrag(e: MouseEvent, obj: EditorObject): void {
     // Prevent event from bubbling
@@ -432,29 +480,51 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     }
   }
 
-  applyTextFormatting(command: string, value: string = ''): void {
-    if (this.selectedObject?.type !== 'text') return;
+  startResize(e: MouseEvent, handle: string): void {
+    if (!this.selectedObject) return;
     
-    // Save current state for undo
+    e.stopPropagation();
+    e.preventDefault();
+    
+    this.isResizing = true;
+    this.resizeHandle = handle;
+    this.resizeStartX = e.clientX;
+    this.resizeStartY = e.clientY;
+    this.resizeStartWidth = this.selectedObject.width;
+    this.resizeStartHeight = this.selectedObject.height;
+    this.dragStartObjX = this.selectedObject.x;
+    this.dragStartObjY = this.selectedObject.y;
+    
+    // Save state for undo
     this.saveToHistory();
+  }
+  
+  startRotate(e: MouseEvent): void {
+    if (!this.selectedObject) return;
     
-    // Save cursor position before applying formatting
-    this.saveTextCursorPosition();
+    e.stopPropagation();
+    e.preventDefault();
     
-    // Execute the formatting command
-    document.execCommand(command, false, value);
+    this.isRotating = true;
     
-    // Update text content after formatting is applied
-    const textElement = document.querySelector('.text-object[contenteditable="true"]');
-    if (textElement) {
-      const textObj = this.selectedObject as TextObject;
-      textObj.text = textElement.innerHTML;
-    }
+    // Calculate center of object
+    const centerX = this.selectedObject.x + this.selectedObject.width / 2;
+    const centerY = this.selectedObject.y + this.selectedObject.height / 2;
     
-    // Restore cursor position
-    this.restoreTextCursorPosition();
+    // Get cursor position relative to the editor with zoom adjustment
+    const rect = this.editorContainer.nativeElement.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / (this.zoom / 100);
+    const y = (e.clientY - rect.top) / (this.zoom / 100);
     
-    this.notify(`${command} formatting applied`, 'success');
+    // Calculate initial angle
+    const angleRadians = Math.atan2(y - centerY, x - centerX);
+    this.rotateStartAngle = (angleRadians * 180 / Math.PI) + 90; // Start angle
+    
+    // Store current rotation
+    this.rotateStartX = this.selectedObject.rotation || 0;
+    
+    // Save state for undo
+    this.saveToHistory();
   }
 
   handleCanvasClick(e: MouseEvent): void {
@@ -468,18 +538,13 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     this.hideContextMenu();
   }
 
-  // FIX: This function was causing the text to be reversed
-  updateTextContent(e: Event, obj: EditorObject): void {
-    if (obj.type !== 'text') return;
+  // ====== HELPER METHODS ======
+  
+  getObjectProperty(obj: EditorObject, property: string): any {
+    if (!obj) return null;
     
-    // Save state for undo before changing text
-    this.saveToHistory();
-    
-    const target = e.target as HTMLElement;
-    
-   
-    (obj as TextObject).text = target.innerHTML;
-    
+    // Regular property access
+    return (obj as any)[property];
   }
 
   createArrayForTable(obj: EditorObject, property: string): any[] {
@@ -529,6 +594,11 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
            (this.selectedObject as TextObject).textAlign === align;
   }
   
+  isTextWithListType(type: 'ordered' | 'unordered' | null): boolean {
+    return this.selectedObject?.type === 'text' && 
+           (this.selectedObject as TextObject).listType === type;
+  }
+  
   // Helper for zoom controls
   adjustZoom(amount: number): void {
     this.zoom = Math.max(10, Math.min(200, this.zoom + amount));
@@ -551,12 +621,13 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     return (index % 10) + 1;
   }
 
-  // Setup mouse events with updated handlers for resize and rotate
+  // ====== MOUSE EVENTS HANDLING ======
+  
   setupEditorEvents(): void {
     if (this.editorContainer) {
       // Add event listeners to document for tracking mouse movements
-      document.addEventListener('mousemove', this.handleMouseMove.bind(this));
-      document.addEventListener('mouseup', this.handleMouseUp.bind(this));
+      document.addEventListener('mousemove', this.handleMouseMove);
+      document.addEventListener('mouseup', this.handleMouseUp);
       
       // Prevent context menu
       document.addEventListener('contextmenu', (e) => {
@@ -567,7 +638,6 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     }
   }
   
-  // Fixed mouse event handling with proper scope binding
   handleMouseMove = (e: MouseEvent): void => {
     if (!this.editorContainer?.nativeElement) return;
     
@@ -578,7 +648,7 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     // Update cursor position display
     this.cursorPosition = { x: Math.round(x), y: Math.round(y) };
     
-    // Handle dragging - FIX: proper coordinate calculation with zoom factor
+    // Handle dragging - with zoom factor adjustment
     if (this.isDragging && this.selectedObject) {
       const dx = (e.clientX - this.dragStartX) / (this.zoom / 100);
       const dy = (e.clientY - this.dragStartY) / (this.zoom / 100);
@@ -699,96 +769,9 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
       });
     }
   }
+
+  // ====== HISTORY MANAGEMENT ======
   
-  // Resize and rotation handlers
-  startResize(e: MouseEvent, handle: string): void {
-    if (!this.selectedObject) return;
-    
-    e.stopPropagation();
-    e.preventDefault();
-    
-    this.isResizing = true;
-    this.resizeHandle = handle;
-    this.resizeStartX = e.clientX;
-    this.resizeStartY = e.clientY;
-    this.resizeStartWidth = this.selectedObject.width;
-    this.resizeStartHeight = this.selectedObject.height;
-    this.dragStartObjX = this.selectedObject.x;
-    this.dragStartObjY = this.selectedObject.y;
-    
-    // Save state for undo
-    this.saveToHistory();
-  }
-  
-  // Update startRotate method with improved calculation
-  startRotate(e: MouseEvent): void {
-    if (!this.selectedObject) return;
-    
-    e.stopPropagation();
-    e.preventDefault();
-    
-    this.isRotating = true;
-    
-    // Calculate center of object
-    const centerX = this.selectedObject.x + this.selectedObject.width / 2;
-    const centerY = this.selectedObject.y + this.selectedObject.height / 2;
-    
-    // Get cursor position relative to the editor with zoom adjustment
-    const rect = this.editorContainer.nativeElement.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / (this.zoom / 100);
-    const y = (e.clientY - rect.top) / (this.zoom / 100);
-    
-    // Calculate initial angle
-    const angleRadians = Math.atan2(y - centerY, x - centerX);
-    this.rotateStartAngle = (angleRadians * 180 / Math.PI) + 90; // Start angle
-    
-    // Store current rotation
-    this.rotateStartX = this.selectedObject.rotation || 0;
-    
-    // Save state for undo
-    this.saveToHistory();
-  }
-  
-  // Object finding methods
-  findObjectAt(x: number, y: number): EditorObject | null {
-    // Sort by z-index to check top objects first
-    const sortedObjects = [...this.objects].sort((a, b) => b.zIndex - a.zIndex);
-    
-    for (const obj of sortedObjects) {
-      if (this.isPointInObject(x, y, obj)) {
-        return obj;
-      }
-    }
-    
-    return null;
-  }
-  
-  // Improved point-in-object detection with rotation support
-  isPointInObject(x: number, y: number, obj: EditorObject): boolean {
-    if (obj.rotation && obj.rotation !== 0) {
-      // Handle rotated objects
-      const centerX = obj.x + obj.width / 2;
-      const centerY = obj.y + obj.height / 2;
-      
-      // Calculate relative coordinates and rotate back
-      const rotRad = -(obj.rotation * Math.PI / 180);
-      const relX = x - centerX;
-      const relY = y - centerY;
-      
-      // Apply inverse rotation to check against axis-aligned bounding box
-      const rotX = relX * Math.cos(rotRad) - relY * Math.sin(rotRad);
-      const rotY = relX * Math.sin(rotRad) + relY * Math.cos(rotRad);
-      
-      // Check against half-dimensions
-      return Math.abs(rotX) <= obj.width / 2 && Math.abs(rotY) <= obj.height / 2;
-    } else {
-      // Standard axis-aligned bounding box check
-      return x >= obj.x && x <= obj.x + obj.width && 
-             y >= obj.y && y <= obj.y + obj.height;
-    }
-  }
-  
-  // History management
   saveToHistory(): void {
     // Create a deep copy of the current state
     const stateCopy = JSON.parse(JSON.stringify(this.objects));
@@ -844,8 +827,9 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
       this.notify('Redo successful', 'success');
     }
   }
+
+  // ====== CLIPBOARD OPERATIONS ======
   
-  // Clipboard functionality
   private clipboardObject: EditorObject | null = null;
   
   copyToClipboard(): void {
@@ -885,8 +869,9 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     
     this.notify('Object pasted', 'success');
   }
+
+  // ====== Z-INDEX MANAGEMENT ======
   
-  // Z-index handling
   bringToFront(obj: EditorObject): void {
     if (!obj) return;
     
@@ -903,7 +888,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     obj.zIndex = minZ - 1;
   }
   
-  // UI state updates
+  // ====== UI STATE MANAGEMENT ======
+  
   updateTextControls(): void {
     if (!this.selectedObject) {
       this.showTextControls = false;
@@ -916,8 +902,9 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   hideContextMenu(): void {
     this.showContextMenu = false;
   }
+
+  // ====== OBJECT CREATION METHODS ======
   
-  // Object creation methods
   addTextbox(): void {
     // Save state for undo
     this.saveToHistory();
@@ -931,14 +918,15 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
       height: 40,
       zIndex: this.objects.length + 1,
       rotation: 0,
-      text: 'Edit this text', // No manipulation here
+      text: 'Edit this text',
       fontSize: 18,
       fontFamily: 'Inter',
       fontWeight: 'normal',
       fontStyle: 'normal',
       textDecoration: 'none',
       color: '#000000',
-      textAlign: 'left'
+      textAlign: 'left',
+      listType: null
     };
     
     this.objects.push(textObj);
@@ -1042,7 +1030,10 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
       rows: rows,
       cols: cols,
       cellWidth: Math.min(400, cols * 80) / cols,
-      cellHeight: 30
+      cellHeight: 30,
+      customCells: [],
+      columnWidths: Array(cols).fill(Math.min(400, cols * 80) / cols),
+      rowHeights: Array(rows + 1).fill(30)
     };
     
     this.objects.push(tableObj);
@@ -1073,7 +1064,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
       fontStyle: 'normal',
       textDecoration: 'none',
       color: '#1976d2',
-      textAlign: 'left'
+      textAlign: 'left',
+      listType: null
     };
     
     this.objects.push(textObj);
@@ -1084,7 +1076,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     this.notify(`Field {{${fieldType}}} inserted`, 'success');
   }
   
-  // Object manipulation
+  // ====== OBJECT MANIPULATION ======
+  
   duplicateObject(): void {
     if (!this.selectedObject && this.selectedObjects.length === 0) return;
     
@@ -1143,7 +1136,33 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     }
   }
   
-  // Text formatting methods
+  // ====== TEXT FORMATTING METHODS ======
+  
+  applyTextFormatting(command: string, value: string = ''): void {
+    if (this.selectedObject?.type !== 'text') return;
+    
+    // Save current state for undo
+    this.saveToHistory();
+    
+    // Save cursor position before applying formatting
+    this.saveTextCursorPosition();
+    
+    // Execute the formatting command
+    document.execCommand(command, false, value);
+    
+    // Update text content after formatting is applied
+    const textElement = document.querySelector('.text-object[contenteditable="true"]');
+    if (textElement) {
+      const textObj = this.selectedObject as TextObject;
+      textObj.text = textElement.innerHTML;
+    }
+    
+    // Restore cursor position
+    this.restoreTextCursorPosition();
+    
+    this.notify(`${command} formatting applied`, 'success');
+  }
+  
   toggleBold(): void {
     if (this.selectedObject?.type !== 'text') return;
 
@@ -1177,6 +1196,28 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     this.notify('Underline toggled', 'success');
   }
   
+  toggleOrderedList(): void {
+    if (this.selectedObject?.type !== 'text') return;
+
+    this.saveToHistory();
+    this.applyTextFormatting('insertOrderedList');
+    
+    const textObj = this.selectedObject as TextObject;
+    textObj.listType = textObj.listType === 'ordered' ? null : 'ordered';
+    this.notify('Ordered list toggled', 'success');
+  }
+  
+  toggleUnorderedList(): void {
+    if (this.selectedObject?.type !== 'text') return;
+
+    this.saveToHistory();
+    this.applyTextFormatting('insertUnorderedList');
+    
+    const textObj = this.selectedObject as TextObject;
+    textObj.listType = textObj.listType === 'unordered' ? null : 'unordered';
+    this.notify('Unordered list toggled', 'success');
+  }
+  
   setColor(event: Event): void {
     if (this.selectedObject?.type !== 'text') return;
   
@@ -1206,10 +1247,6 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     const textObj = this.selectedObject as TextObject;
     textObj.fontSize = parseInt(select.value, 10);
     this.notify(`Font size set to ${select.value}px`, 'success');
-
-    if (this.selectedObject?.type === 'text') {
-      (this.selectedObject as TextObject).fontSize = parseInt(select.value, 10);
-    }
   }
   
   setFontFamily(event: Event): void {
@@ -1225,10 +1262,6 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     const textObj = this.selectedObject as TextObject;
     textObj.fontFamily = select.value;
     this.notify(`Font changed to ${select.value}`, 'success');
-
-    if (this.selectedObject?.type === 'text') {
-      (this.selectedObject as TextObject).fontFamily = select.value;
-    }
   }
   
   setAlignment(alignment: 'left' | 'center' | 'right'): void {
@@ -1255,7 +1288,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     }
   }
   
-  // Group/Ungroup functionality
+  // ====== GROUP/UNGROUP FUNCTIONALITY ======
+  
   groupObjects(): void {
     if (this.selectedObjects.length <= 1) {
       this.notify('Select multiple objects to group', 'warning');
@@ -1352,7 +1386,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     this.notify('Group ungrouped', 'success');
   }
   
-  // Alignment methods
+  // ====== ALIGNMENT METHODS ======
+  
   alignObjects(position: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'): void {
     if (this.selectedObjects.length === 0) return;
 
@@ -1419,7 +1454,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     this.notify(`Objects aligned to ${position}`, 'success');
   }
   
-  // Distribution methods
+  // ====== DISTRIBUTION METHODS ======
+  
   distributeObjects(direction: 'horizontal' | 'vertical'): void {
     if (this.selectedObjects.length < 3) {
       this.notify('Select at least 3 objects to distribute', 'warning');
@@ -1505,7 +1541,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     this.notify(`Objects distributed ${direction}ly`, 'success');
   }
   
-  // Page management
+  // ====== PAGE MANAGEMENT ======
+  
   savePage(): void {
     if (this.currentPage < this.pages.length) {
       // Update existing page
@@ -1551,7 +1588,222 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     this.notify(`Navigated to page ${this.currentPage + 1}`, 'success');
   }
   
-  // Project management
+  // Table data management
+  updateTableCellContent(e: Event, obj: EditorObject, rowIndex: number, colIndex: number): void {
+    if (!this.isTableObject(obj)) return;
+    
+    const tableObj = obj as TableObject;
+    
+    // Save state for undo
+    this.saveToHistory();
+    
+    const target = e.target as HTMLElement;
+    
+    // Initialize the cell data array if it doesn't exist
+    if (!tableObj.cellData) {
+      tableObj.cellData = [];
+      for (let r = 0; r < tableObj.rows + 1; r++) {
+        let rowData = [];
+        for (let c = 0; c < tableObj.cols; c++) {
+          rowData.push(''); // Empty cells by default
+        }
+        tableObj.cellData.push(rowData);
+      }
+    }
+    
+    // Update the cell content
+    tableObj.cellData[rowIndex][colIndex] = target.innerText;
+    
+    this.notify('Cell updated', 'success');
+  }
+  
+  getCellContent(obj: EditorObject, rowIndex: number, colIndex: number): string {
+    if (!this.isTableObject(obj)) return '';
+    
+    const tableObj = obj as TableObject;
+    
+    if (tableObj.cellData && tableObj.cellData[rowIndex] && tableObj.cellData[rowIndex][colIndex] !== undefined) {
+      return tableObj.cellData[rowIndex][colIndex];
+    }
+    
+    // Return empty content if no data is available
+    return '';
+  }
+  
+  editTableCell(e: MouseEvent, obj: EditorObject, rowIndex: number, colIndex: number): void {
+    if (!this.isTableObject(obj)) return;
+    
+    const tableObj = obj as TableObject;
+    
+    if (tableObj !== this.selectedObject) return;
+    
+    // If it's a double-click, make the cell editable
+    if (e.detail === 2) {
+      e.stopPropagation();
+      
+      const target = e.target as HTMLElement;
+      target.setAttribute('contenteditable', 'true');
+      target.focus();
+      
+      // Select all text in the cell
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  }
+  
+  // ====== TABLE RESIZE METHODS ======
+  
+  startColumnResize(e: MouseEvent, obj: EditorObject, colIndex: number): void {
+    if (!this.isTableObject(obj)) return;
+    
+    const tableObj = obj as TableObject;
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    this.isResizingColumn = true;
+    this.currentResizeIndex = colIndex;
+    this.resizeStartX = e.clientX;
+    this.resizeStartSize = tableObj.columnWidths ? tableObj.columnWidths[colIndex] : tableObj.cellWidth;
+    
+    // Save state for undo
+    this.saveToHistory();
+    
+    // Add mouse move and mouse up listeners
+    document.addEventListener('mousemove', this.handleTableResize);
+    document.addEventListener('mouseup', this.endTableResize);
+  }
+  
+  startRowResize(e: MouseEvent, obj: EditorObject, rowIndex: number): void {
+    if (!this.isTableObject(obj)) return;
+    
+    const tableObj = obj as TableObject;
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    this.isResizingRow = true;
+    this.currentResizeIndex = rowIndex;
+    this.resizeStartY = e.clientY;
+    this.resizeStartSize = tableObj.rowHeights ? tableObj.rowHeights[rowIndex] : tableObj.cellHeight;
+    
+    // Save state for undo
+    this.saveToHistory();
+    
+    // Add mouse move and mouse up listeners
+    document.addEventListener('mousemove', this.handleTableResize);
+    document.addEventListener('mouseup', this.endTableResize);
+  }
+  
+  handleTableResize = (e: MouseEvent): void => {
+    if (!this.selectedObject || this.selectedObject.type !== 'table') return;
+    
+    const tableObj = this.selectedObject as TableObject;
+    const zoomFactor = this.zoom / 100;
+    
+    if (this.isResizingColumn) {
+      // Calculate the new width based on mouse movement
+      const dx = (e.clientX - this.resizeStartX) / zoomFactor;
+      let newWidth = Math.max(20, this.resizeStartSize + dx); // Min width of 20px
+      
+      // Ensure we have column widths array
+      if (!tableObj.columnWidths) {
+        tableObj.columnWidths = Array(tableObj.cols).fill(tableObj.cellWidth);
+      }
+      
+      // Update the width of the column
+      tableObj.columnWidths[this.currentResizeIndex] = newWidth;
+      
+      // Update overall table width
+      tableObj.width = tableObj.columnWidths.reduce((sum, width) => sum + width, 0);
+    }
+    
+    if (this.isResizingRow) {
+      // Calculate the new height based on mouse movement
+      const dy = (e.clientY - this.resizeStartY) / zoomFactor;
+      let newHeight = Math.max(20, this.resizeStartSize + dy); // Min height of 20px
+      
+      // Ensure we have row heights array
+      if (!tableObj.rowHeights) {
+        tableObj.rowHeights = Array(tableObj.rows + 1).fill(tableObj.cellHeight);
+      }
+      
+      // Update the height of the row
+      tableObj.rowHeights[this.currentResizeIndex] = newHeight;
+      
+      // Update overall table height
+      tableObj.height = tableObj.rowHeights.reduce((sum, height) => sum + height, 0);
+    }
+  }
+  
+  endTableResize = (e: MouseEvent): void => {
+    this.isResizingColumn = false;
+    this.isResizingRow = false;
+    this.currentResizeIndex = -1;
+    
+    // Remove event listeners
+    document.removeEventListener('mousemove', this.handleTableResize);
+    document.removeEventListener('mouseup', this.endTableResize);
+    
+    // Save state for undo
+    this.saveToHistory();
+  }
+  
+  getCellWidth(tableObj: TableObject, colIndex: number): number {
+    if (tableObj.columnWidths && tableObj.columnWidths[colIndex] !== undefined) {
+      return tableObj.columnWidths[colIndex];
+    }
+    return tableObj.cellWidth;
+  }
+  
+  getCellHeight(tableObj: TableObject, rowIndex: number): number {
+    if (tableObj.rowHeights && tableObj.rowHeights[rowIndex] !== undefined) {
+      return tableObj.rowHeights[rowIndex];
+    }
+    return tableObj.cellHeight;
+  }
+  
+  // Helper to check if an object is a TableObject
+  isTableObject(obj: EditorObject): boolean {
+    return obj.type === 'table';
+  }
+
+  // Helper to safely cast to TableObject with type checking
+  asTableObject(obj: EditorObject): TableObject | null {
+    return this.isTableObject(obj) ? obj as TableObject : null;
+  }
+
+  getCustomCellStyle(obj: EditorObject, rowIndex: number, colIndex: number): any {
+    if (!this.isTableObject(obj)) return {};
+    
+    const tableObj = obj as TableObject;
+    
+    // First check if this cell has custom dimensions
+    const customCell = tableObj.customCells.find(cell => 
+      cell.row === rowIndex && cell.col === colIndex
+    );
+    
+    if (customCell) {
+      return {
+        width: `${customCell.width}px`,
+        height: `${customCell.height}px`
+      };
+    }
+    
+    // Otherwise use the column/row dimensions
+    return {
+      width: `${this.getCellWidth(tableObj, colIndex)}px`,
+      height: `${this.getCellHeight(tableObj, rowIndex)}px`
+    };
+  }
+  
+  // ====== PROJECT MANAGEMENT ======
+  
   saveProject(): void {
     // Save current page
     this.savePage();
@@ -1605,7 +1857,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     }
   }
   
-  // Export functionality
+  // ====== EXPORT FUNCTIONALITY ======
+  
   updateExportDetails(): void {
     switch(this.exportFormat) {
       case 'svg':
@@ -1964,7 +2217,8 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     return svg;
   }
   
-  // Notification system
+  // ====== NOTIFICATION SYSTEM ======
+  
   notify(message: string, type: 'success' | 'warning' | 'error'): void {
     this.notification = message;
     this.notificationType = type;
