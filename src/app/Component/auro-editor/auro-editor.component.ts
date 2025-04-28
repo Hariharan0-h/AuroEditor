@@ -134,6 +134,10 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   currentResizeIndex = -1;
   resizeStartSize = 0;
   
+  activeDropdown: string | null = null;
+  savedSelection: Range | null = null;
+  savedTextElement: HTMLElement | null = null;
+
   // Current position
   cursorPosition = { x: 0, y: 0 };
   
@@ -250,6 +254,95 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
         }
       }
     }, 50);
+  }
+
+  toggleDropdown(type: string, event: MouseEvent): void {
+    event.stopPropagation();
+    event.preventDefault();
+    
+    // Save current text selection if editing text
+    if (this.selectedObject?.type === 'text') {
+      const textElement = document.querySelector(`[id="${this.selectedObject.id}"] .text-object`) as HTMLElement;
+      if (textElement && textElement.getAttribute('contenteditable') === 'true') {
+        this.savedTextElement = textElement;
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          this.savedSelection = selection.getRangeAt(0).cloneRange();
+        }
+        
+        // Temporarily blur the text element
+        textElement.blur();
+      }
+    }
+    
+    // Toggle dropdown
+    this.activeDropdown = this.activeDropdown === type ? null : type;
+  }
+
+  selectFontSize(size: number, event: MouseEvent): void {
+    event.stopPropagation();
+    
+    if (this.selectedObject?.type !== 'text') return;
+    
+    // Save state for undo
+    this.saveToHistory();
+    
+    // Apply the font size change
+    (this.selectedObject as TextObject).fontSize = size;
+    
+    // Close dropdown
+    this.activeDropdown = null;
+    
+    // Restore text focus and selection if needed
+    this.restoreTextSelection();
+    
+    this.notify(`Font size set to ${size}px`, 'success');
+  }
+  
+  // Handle font family selection
+  selectFontFamily(family: string, event: MouseEvent): void {
+    event.stopPropagation();
+    
+    if (this.selectedObject?.type !== 'text') return;
+    
+    // Save state for undo
+    this.saveToHistory();
+    
+    // Apply the font family change
+    (this.selectedObject as TextObject).fontFamily = family;
+    
+    // Close dropdown
+    this.activeDropdown = null;
+    
+    // Restore text focus and selection if needed
+    this.restoreTextSelection();
+    
+    this.notify(`Font changed to ${family}`, 'success');
+  }
+  
+  // Helper to restore text selection
+  restoreTextSelection(): void {
+    if (this.savedTextElement && this.savedSelection) {
+      setTimeout(() => {
+        this.savedTextElement?.focus();
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(this.savedSelection!);
+        }
+        // Clear saved values
+        this.savedTextElement = null;
+        this.savedSelection = null;
+      }, 50);
+    }
+  }
+
+  @HostListener('document:click')
+  closeDropdowns(): void {
+    if (this.activeDropdown) {
+      this.activeDropdown = null;
+      this.restoreTextSelection();
+    }
   }
 
   updateTextDirectly(obj: TextObject): void {
@@ -556,6 +649,7 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   }
 
   handleCanvasClick(e: MouseEvent): void {
+    debugger;
     // Clear selection unless shift key is pressed for multi-select
     if (!this.isMultiSelect) {
       this.selectedObject = null;
@@ -1441,40 +1535,71 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   }
   
   setFontSize(event: Event): void {
-    debugger;
     if (this.selectedObject?.type !== 'text') return;
-  
+    
     // Stop propagation to prevent editor deselection
     event.stopPropagation();
     
-    this.saveToHistory();
-    
     const select = event.target as HTMLSelectElement;
     if (!select?.value) return;
-  
-    const fontSize = select.value + 'px';
-    this.applyTextFormatting('fontSize', fontSize);
     
-    const textObj = this.selectedObject as TextObject;
-    textObj.fontSize = parseInt(select.value, 10);
+    // Temporarily store the editing state
+    const textElement = document.querySelector(`[id="${this.selectedObject.id}"] .text-object`) as HTMLElement;
+    const isEditing = textElement && textElement.getAttribute('contenteditable') === 'true';
+    const selection = window.getSelection();
+    const range = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    
+    // Apply the font size change
+    this.saveToHistory();
+    (this.selectedObject as TextObject).fontSize = parseInt(select.value, 10);
+    
+    // Restore text editing focus if needed
+    if (isEditing && textElement && range) {
+      setTimeout(() => {
+        textElement.focus();
+        const newSelection = window.getSelection();
+        if (newSelection) {
+          newSelection.removeAllRanges();
+          newSelection.addRange(range);
+        }
+      }, 10);
+    }
+    
     this.notify(`Font size set to ${select.value}px`, 'success');
   }
   
+  // Fixed setFontFamily method
   setFontFamily(event: Event): void {
     if (this.selectedObject?.type !== 'text') return;
-  
+    
     // Stop propagation to prevent editor deselection
     event.stopPropagation();
     
-    this.saveToHistory();
-    
     const select = event.target as HTMLSelectElement;
     if (!select?.value) return;
-  
-    this.applyTextFormatting('fontName', select.value);
     
-    const textObj = this.selectedObject as TextObject;
-    textObj.fontFamily = select.value;
+    // Temporarily store the editing state
+    const textElement = document.querySelector(`[id="${this.selectedObject.id}"] .text-object`) as HTMLElement;
+    const isEditing = textElement && textElement.getAttribute('contenteditable') === 'true';
+    const selection = window.getSelection();
+    const range = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    
+    // Apply the font family change
+    this.saveToHistory();
+    (this.selectedObject as TextObject).fontFamily = select.value;
+    
+    // Restore text editing focus if needed
+    if (isEditing && textElement && range) {
+      setTimeout(() => {
+        textElement.focus();
+        const newSelection = window.getSelection();
+        if (newSelection) {
+          newSelection.removeAllRanges();
+          newSelection.addRange(range);
+        }
+      }, 10);
+    }
+    
     this.notify(`Font changed to ${select.value}`, 'success');
   }
   
