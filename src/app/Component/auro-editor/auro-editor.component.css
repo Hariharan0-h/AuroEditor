@@ -493,12 +493,42 @@
   width: calc(100% - 4px); /* Adjust for padding */
   height: calc(100% - 4px); /* Adjust for padding */
   white-space: pre-wrap;
-  overflow: auto; /* Changed from hidden to auto to allow scrolling in large text boxes */
+  overflow: auto; /* Allow scrolling for large text boxes */
   outline: none; /* Remove default outline when focused */
+  -webkit-user-select: text; /* Ensure text selection works properly */
+  user-select: text;
+  line-height: 1.5; /* Better line spacing for editing */
+  caret-color: #4361ee; /* Make cursor more visible */
+  min-height: 1em; /* Ensure empty text blocks still have height */
 }
 
 .text-object[contenteditable="true"]:focus {
   box-shadow: inset 0 0 0 2px rgba(67, 97, 238, 0.3);
+}
+
+.text-object[contenteditable="true"] p:empty:after,
+.text-object[contenteditable="true"] li:empty:after {
+  content: '\00a0'; /* Non-breaking space to ensure empty lines are clickable */
+  display: inline;
+}
+
+@-moz-document url-prefix() {
+  .text-object[contenteditable="true"] {
+    word-break: break-word;
+  }
+}
+
+/* Improve character selection experience */
+.text-object[contenteditable="true"]::selection {
+  background-color: rgba(67, 97, 238, 0.3);
+  color: inherit;
+}
+
+/* Ensure cursor is visible at line boundaries */
+.text-object[contenteditable="true"] br {
+  display: block;
+  content: '';
+  margin-top: 0.5em;
 }
 
 /* NEW: Styles for lists within text objects */

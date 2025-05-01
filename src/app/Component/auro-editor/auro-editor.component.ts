@@ -2,6 +2,18 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+export interface TextObject extends EditorObject {
+  text: string;
+  fontSize: number;  
+  fontFamily: string; 
+  fontWeight: string; 
+  fontStyle: string;  
+  textDecoration: string; 
+  color: string;     
+  textAlign: string; 
+  listType?: 'ordered' | 'unordered' | null;
+}
+
 // Type definitions for editor objects
 export interface EditorObject {
   id: string;
@@ -194,8 +206,163 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.setupEditorEvents();
+    this.setupTextSelectionMonitoring(); // Add this line
     setTimeout(() => this.addTextbox(), 100);
   }
+
+  applySelectedTextFormatting(command: string, value: string = ''): void {
+    if (!this.isEditingText()) return;
+    
+    // First check if there's a text selection
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.toString().length === 0) {
+      // No text selected, notify the user
+      this.notify('Please select text to format', 'warning');
+      return;
+    }
+    
+    // Save current state for undo before changing anything
+    this.saveToHistory();
+    
+    // Apply the command to the selected text only
+    document.execCommand(command, false, value);
+    
+    // Update the text object with the new HTML content
+    if (this.selectedObject?.type === 'text') {
+      const textElement = document.querySelector(`[id="${this.selectedObject.id}"] .text-object`) as HTMLElement;
+      if (textElement) {
+        (this.selectedObject as TextObject).text = textElement.innerHTML;
+      }
+    }
+    
+    // Update UI state
+    this.updateTextControls();
+  }
+  
+  /**
+   * Apply bold formatting only to selected text
+   */
+  toggleSelectedBold(): void {
+    this.applySelectedTextFormatting('bold');
+  }
+  
+  /**
+   * Apply italic formatting only to selected text
+   */
+  toggleSelectedItalic(): void {
+    this.applySelectedTextFormatting('italic');
+  }
+  
+  /**
+   * Apply underline formatting only to selected text
+   */
+  toggleSelectedUnderline(): void {
+    this.applySelectedTextFormatting('underline');
+  }
+  
+  /**
+   * Apply color change only to selected text
+   */
+  setSelectedColor(color: string): void {
+    this.applySelectedTextFormatting('foreColor', color);
+  }
+  
+  /**
+   * Apply font size change only to selected text
+   */
+  setSelectedFontSize(size: string): void {
+    // Use fontSize command for the selected text
+    this.applySelectedTextFormatting('fontSize', size);
+    
+    // Note: HTML's execCommand fontSize takes values 1-7, not px values
+    // For more precise control, you may need to use a span with style attribute
+  }
+  
+  /**
+   * Apply font family change only to selected text
+   * This requires a custom approach since execCommand doesn't support fontName well
+   */
+  setSelectedFontFamily(fontFamily: string): void {
+    this.applySelectedTextFormatting('fontName', fontFamily);
+  }
+  
+  /**
+   * Enhanced method to check if text selection has specific formatting
+   * This allows the toolbar buttons to update based on current selection
+   */
+  isSelectionFormatted(format: string): boolean {
+    if (!this.isEditingText()) return false;
+    
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+    
+    // Use queryCommandState for common formatting
+    if (['bold', 'italic', 'underline'].includes(format)) {
+      return document.queryCommandState(format);
+    }
+    
+    // For more complex formatting, you may need to examine the selection
+    return false;
+  }
+  
+  /**
+   * Get the current color of the selected text
+   */
+  getSelectionColor(): string {
+    if (!this.isEditingText()) return '#000000';
+    
+    // queryCommandValue can get the color of the current selection
+    const color = document.queryCommandValue('foreColor');
+    return color || '#000000';
+  }
+  
+  /**
+   * Get the current font size of the selected text
+   */
+  getSelectionFontSize(): string {
+    if (!this.isEditingText()) return '3'; // Default size in HTML's fontSize (3 ~ 16px)
+    
+    const size = document.queryCommandValue('fontSize');
+    return size || '3';
+  }
+  
+  /**
+   * Get the current font family of the selected text
+   */
+  getSelectionFontFamily(): string {
+    if (!this.isEditingText()) return 'Inter';
+    
+    const family = document.queryCommandValue('fontName');
+    return family || 'Inter';
+  }
+  
+  /**
+   * Update text toolbar controls based on current text selection
+   */
+  updateTextToolbarForSelection(): void {
+    // This would be called when selection changes
+    if (!this.isEditingText()) return;
+    
+    // Update UI elements based on the current selection formatting
+    // This makes buttons show as active when the cursor is on formatted text
+  }
+  
+  /**
+   * Handle selection change within text editor
+   */
+  handleTextSelectionChange(): void {
+    if (!this.isEditingText()) return;
+    
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    
+    // Save the selection for later use
+    this.savedSelection = selection.getRangeAt(0).cloneRange();
+    
+    // Update toolbar state to reflect current selection's formatting
+    this.updateTextToolbarForSelection();
+  }
+  
 
   // ====== IMPROVED TEXT HANDLING SECTION ======
   
@@ -215,7 +382,7 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
       }
     }
   }
-
+  
   focusTextForEditing(textObj: TextObject): void {
     setTimeout(() => {
       // Find the text element
@@ -223,8 +390,12 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
       const textElement = document.querySelector(selector) as HTMLElement;
       
       if (textElement) {
-        // Set the content directly before focusing to avoid issues
-        textElement.innerHTML = textObj.text || '';
+        // Set the inner HTML directly - this is critical for proper editing
+        if (textObj.text) {
+          textElement.innerHTML = textObj.text;
+        } else {
+          textElement.innerHTML = ''; // Ensure empty text is properly editable
+        }
         
         // Set focus
         textElement.focus();
@@ -235,17 +406,21 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
         
         // If text is empty, just focus on the element
         if (textElement.childNodes.length === 0) {
-          textElement.focus();
-          return;
-        }
-        
-        // Otherwise, set cursor at the end
-        const lastChild = textElement.lastChild as Node;
-        if (lastChild.nodeType === Node.TEXT_NODE) {
-          range.setStart(lastChild, lastChild.textContent?.length || 0);
+          // Create a text node so cursor is visible
+          const textNode = document.createTextNode('');
+          textElement.appendChild(textNode);
+          range.setStart(textNode, 0);
+          range.setEnd(textNode, 0);
         } else {
-          range.selectNodeContents(lastChild);
-          range.collapse(false); // collapse to end
+          // Place cursor at the end of content
+          const lastChild = textElement.lastChild as Node;
+          if (lastChild.nodeType === Node.TEXT_NODE) {
+            range.setStart(lastChild, lastChild.textContent?.length || 0);
+            range.setEnd(lastChild, lastChild.textContent?.length || 0);
+          } else {
+            range.selectNodeContents(lastChild);
+            range.collapse(false); // collapse to end
+          }
         }
         
         if (selection) {
@@ -380,17 +555,48 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
 
   @HostListener('window:keydown', ['$event'])
   onKeyDown(e: KeyboardEvent): void {
-    // Don't handle keyboard shortcuts if actively editing text
-    if (this.selectedObject?.type === 'text' && 
-        document.activeElement?.getAttribute('contenteditable') === 'true') {
-      // Only handle Escape to exit text editing mode
-      if (e.key === 'Escape') {
-        (document.activeElement as HTMLElement).blur();
+    // Handle text editing separately
+    if (this.isEditingText()) {
+      // Handle special key combinations
+      if (e.key === 'Enter' && e.shiftKey) {
+        // Shift+Enter should insert a line break instead of paragraph
         e.preventDefault();
+        document.execCommand('insertLineBreak');
+        return;
       }
+      
+      if (e.key === 'Escape') {
+        // Exit text editing mode
+        e.preventDefault();
+        this.finishTextEditing();
+        return;
+      }
+      
+      // For formatting shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 'b': // Bold
+            e.preventDefault();
+            this.toggleBold();
+            return;
+            
+          case 'i': // Italic
+            e.preventDefault();
+            this.toggleItalic();
+            return;
+            
+          case 'u': // Underline
+            e.preventDefault();
+            this.toggleUnderline();
+            return;
+        }
+      }
+      
+      // For all other keys, let the contenteditable handle it normally
       return;
     }
     
+    // Handle non-text editing keyboard shortcuts
     if (e.key === 'Delete' && this.selectedObject) {
       this.deleteObject();
     }
@@ -453,7 +659,7 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
     const obj = this.objects.find(o => o.id === objId);
     if (!obj || obj.type !== 'text') return;
     
-    // Update the text property
+    // Update the text property with current HTML content
     (obj as TextObject).text = textElement.innerHTML;
     
     // Restore cursor position on next tick
@@ -467,6 +673,9 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
         document.activeElement?.getAttribute('contenteditable') === 'true') {
       e.preventDefault();
       
+      // Save cursor position
+      this.saveTextCursorPosition();
+      
       // Get text content from clipboard
       const text = e.clipboardData?.getData('text/plain');
       
@@ -478,6 +687,163 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
         const textElement = document.activeElement as HTMLElement;
         if (textElement) {
           (this.selectedObject as TextObject).text = textElement.innerHTML;
+        }
+      }
+      
+      // Restore cursor position after paste
+      setTimeout(() => this.restoreTextCursorPosition(), 0);
+    }
+  }
+
+  @HostListener('keydown', ['$event'])
+  onTextKeyDown(e: KeyboardEvent): void {
+    // Only handle if we're editing a text object
+    if (this.selectedObject?.type === 'text' && 
+        document.activeElement?.getAttribute('contenteditable') === 'true') {
+      
+      // Save cursor position before potential change
+      this.saveTextCursorPosition();
+      
+      // Handle special keys like Backspace, Delete, Enter
+      // But let them process normally in the contenteditable element
+      
+      // After a slight delay, update the model with UI content
+      setTimeout(() => {
+        const textElement = document.activeElement as HTMLElement;
+        if (textElement && this.selectedObject?.type === 'text') {
+          (this.selectedObject as TextObject).text = textElement.innerHTML;
+        }
+      }, 0);
+    }
+  }
+
+  // Helper to determine if we're currently editing text
+  isEditingText(): boolean {
+    if (!this.selectedObject) return false;
+    if (this.selectedObject.type !== 'text') return false;
+    
+    const activeElement = document.activeElement;
+    if (!activeElement) return false;
+    
+    return activeElement.classList.contains('text-object') && 
+           activeElement.getAttribute('contenteditable') === 'true';
+  }
+
+  // Enhanced text editing mode entry
+  startTextEditing(): void {
+    if (this.selectedObject?.type !== 'text') return;
+    
+    // Update UI state for text editing
+    this.showTextControls = true;
+    
+    // Focus on text element
+    this.focusTextForEditing(this.selectedObject as TextObject);
+  }
+
+  // Gracefully exit text editing mode
+  finishTextEditing(): void {
+    if (!this.isEditingText()) return;
+    
+    // Save current text content
+    const textElement = document.activeElement as HTMLElement;
+    if (textElement && this.selectedObject) {
+      (this.selectedObject as TextObject).text = textElement.innerHTML;
+    }
+    
+    // Blur the element to exit editing mode
+    (document.activeElement as HTMLElement).blur();
+    
+    // Save to history after edit is complete
+    this.saveToHistory();
+  }
+
+  // Handle selection within text editing
+  handleTextSelection(): void {
+    if (!this.isEditingText()) return;
+    
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    
+    // Get the current selection
+    const range = selection.getRangeAt(0);
+    
+    // You can extend this method to handle specific text selection behaviors
+    // For example, showing a formatting toolbar near the selection
+    
+    // Save selection for later use
+    this.savedSelection = range.cloneRange();
+  }
+
+  // Add this to handle click within text element
+  handleTextClick(e: MouseEvent, obj: EditorObject): void {
+    if (obj.type !== 'text') return;
+
+    // Stop propagation to avoid selection issues
+    e.stopPropagation();
+    
+    // If element is already contenteditable, allow normal text selection
+    if ((e.target as HTMLElement).getAttribute('contenteditable') === 'true') {
+      // We're already editing, just save selection
+      this.handleTextSelection();
+      return;
+    }
+    
+    // Otherwise, select the object and start editing
+    this.selectObject(e, obj);
+  }
+
+  // Helper to update text formatting based on current selection
+  applyFormattingToSelection(command: string, value: string = ''): void {
+    if (!this.isEditingText()) return;
+    
+    // Save current state for undo
+    this.saveToHistory();
+    
+    // Focus the element (in case it lost focus)
+    (document.activeElement as HTMLElement).focus();
+    
+    // Restore saved selection if available
+    if (this.savedSelection) {
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(this.savedSelection);
+      }
+    }
+    
+    // Apply the formatting command
+    document.execCommand(command, false, value);
+    
+    // Update the text object with new HTML
+    if (this.selectedObject) {
+      const textElement = document.activeElement as HTMLElement;
+      (this.selectedObject as TextObject).text = textElement.innerHTML;
+    }
+    
+    // Update saved selection after format change
+    this.handleTextSelection();
+  }
+
+  // Double-click handler to quickly enter text editing mode
+  handleDoubleClick(e: MouseEvent, obj: EditorObject): void {
+    if (obj.type !== 'text') return;
+    
+    e.stopPropagation();
+    
+    // Select and immediately enter edit mode
+    this.selectObject(e, obj);
+    this.startTextEditing();
+  }
+
+  private syncTextContent(): void {
+    if (this.selectedObject?.type === 'text') {
+      const textObj = this.selectedObject as TextObject;
+      const textElement = document.querySelector(`[id="${textObj.id}"] .text-object`) as HTMLElement;
+      
+      if (textElement && textElement.getAttribute('contenteditable') === 'true') {
+        // Keep model and view in sync
+        if (textElement.innerHTML !== textObj.text) {
+          textObj.text = textElement.innerHTML;
         }
       }
     }
@@ -792,7 +1158,7 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
       if (target.classList.contains('text-object') && 
           obj === this.selectedObject &&
           target.getAttribute('contenteditable') === 'true') {
-        // Allow normal text editing
+        // Allow normal text editing, don't interfere with selection
         return;
       }
     }
@@ -1466,35 +1832,23 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   
   toggleBold(): void {
     if (this.selectedObject?.type !== 'text') return;
-
-    this.saveToHistory();
-    this.applyTextFormatting('bold');
     
-    const textObj = this.selectedObject as TextObject;
-    textObj.fontWeight = textObj.fontWeight === 'bold' ? 'normal' : 'bold';
-    this.notify('Bold toggled', 'success');
+    // Apply bold formatting to selected text only
+    this.toggleSelectedBold();
   }
   
   toggleItalic(): void {
     if (this.selectedObject?.type !== 'text') return;
-
-    this.saveToHistory();
-    this.applyTextFormatting('italic');
     
-    const textObj = this.selectedObject as TextObject;
-    textObj.fontStyle = textObj.fontStyle === 'italic' ? 'normal' : 'italic';
-    this.notify('Italic toggled', 'success');
+    // Apply italic formatting to selected text only
+    this.toggleSelectedItalic();
   }
   
   toggleUnderline(): void {
     if (this.selectedObject?.type !== 'text') return;
-
-    this.saveToHistory();
-    this.applyTextFormatting('underline');
     
-    const textObj = this.selectedObject as TextObject;
-    textObj.textDecoration = textObj.textDecoration === 'underline' ? 'none' : 'underline';
-    this.notify('Underline toggled', 'success');
+    // Apply underline formatting to selected text only
+    this.toggleSelectedUnderline();
   }
   
   toggleOrderedList(): void {
@@ -1521,17 +1875,20 @@ export class AuroEditorComponent implements OnInit, AfterViewInit {
   
   setColor(event: Event): void {
     if (this.selectedObject?.type !== 'text') return;
-  
-    this.saveToHistory();
     
     const input = event.target as HTMLInputElement;
     if (!input?.value) return;
-
-    this.applyTextFormatting('foreColor', input.value);
     
-    const textObj = this.selectedObject as TextObject;
-    textObj.color = input.value;
-    this.notify('Color changed', 'success');
+    // Apply color to selected text only
+    this.setSelectedColor(input.value);
+  }
+
+  setupTextSelectionMonitoring(): void {
+    document.addEventListener('selectionchange', () => {
+      if (this.isEditingText()) {
+        this.handleTextSelectionChange();
+      }
+    });
   }
   
   setFontSize(event: Event): void {

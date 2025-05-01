@@ -261,9 +261,12 @@
             [style.color]="getObjectProperty(obj, 'color')"
             [style.text-align]="getObjectProperty(obj, 'textAlign')"
             [attr.contenteditable]="obj === selectedObject ? 'true' : 'false'"
+            (input)="onTextInput($event)"
             (blur)="updateTextContent($event, obj)"
-            [innerHTML]="obj === selectedObject ? null : getObjectProperty(obj, 'text')"
-            (click)="$event.stopPropagation()">
+            (keydown)="onTextKeyDown($event)"
+            (click)="handleTextClick($event, obj)"
+            (mouseup)="handleTextSelection()"
+            [innerHTML]="obj === selectedObject ? null : getObjectProperty(obj, 'text')">
           </div>
           
           <!-- Shape Object -->
